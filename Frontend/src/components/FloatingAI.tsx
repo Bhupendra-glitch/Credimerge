@@ -15,10 +15,20 @@ export default function FloatingAI() {
 
   const answer = (q: string): string => {
     if (!user) return 'Please log in first.';
-    const lower = q.toLowerCase();
+    const lower = q.toLowerCase().replace(/[?!.]/g, '');
 
-    if (lower.includes('emi') && (lower.includes('total') || lower.includes('kitna'))) {
+    if (
+      lower.includes('emi') &&
+      (lower.includes('total') ||
+        lower.includes('monthly') ||
+        lower.includes('amount') ||
+        lower.includes('kitna') ||
+        lower.includes('how much'))
+    ) {
       return `Your total monthly EMI is ₹${user.monthly_emi.toLocaleString('en-IN')}.`;
+    }
+    if (lower.includes('emi')) {
+      return `Your total monthly EMI is ₹${user.monthly_emi.toLocaleString('en-IN')}. You have ${user.active_loan_count} active loans.`;
     }
     if (lower.includes('score') || lower.includes('health')) {
       return `Your credit health score is ${user.cashflow_score}/100 — ${user.risk_band}.`;
@@ -91,21 +101,26 @@ export default function FloatingAI() {
             ))}
           </div>
 
-          <div className="p-3 border-t border-slate-700 flex gap-2">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              send();
+            }}
+            className="p-3 border-t border-slate-700 flex gap-2"
+          >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
               placeholder="Ask something..."
               className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500"
             />
             <button
-              onClick={send}
+              type="submit"
               className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:opacity-90"
             >
               Send
             </button>
-          </div>
+          </form>
         </div>
       )}
     </>
