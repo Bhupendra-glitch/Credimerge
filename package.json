@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "dotenv": "^18.0.1",
+    "mongoose": "^9.10.1"
+  }
+}
