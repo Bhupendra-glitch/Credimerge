@@ -5,12 +5,15 @@ import { login } from './services/authService';
 import { findUser, getSafeUser, loadUsers } from './services/csvService';
 import { authenticate, AuthRequest } from './middleware/auth';
 import { aggregateLoans, calculateEmi, totalInterest, buildAmortizationTable } from './services/emiService';
+import multer from 'multer';
+import { buildStatementProfile } from './services/statementService';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const PORT = process.env.PORT || 5000;
 
@@ -71,4 +74,19 @@ app.post('/api/emi/aggregate', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 CrediMerge API running on http://localhost:${PORT}`);
   console.log(`📊 Loaded ${loadUsers().length} users from CSV`);
+});
+
+app.post('/api/credit-health/analyze', authenticate, upload.single('statement'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Statement file required' });
+  const filename = req.file.originalname.toLowerCase();
+  const isPdf = req.file.mimetype.includes('pdf') || filename.endsWith('.pdf');
+  const isCsv = req.file.mimetype.includes('csv') || filename.endsWith('.csv');
+  if (!isPdf && !isCsv) {
+    return res.status(400).json({ error: 'Only PDF and CSV statements are supported' });
+  }
+  try {
+    res.json(await buildStatementProfile(req.file.buffer, isPdf ? 'application/pdf' : 'text/csv'));
+  } catch (err: any) {
+    res.status(422).json({ error: err.message || 'Unable to analyze statement' });
+  }
 });

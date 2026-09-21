@@ -21,6 +21,14 @@ export const api = {
 
   getUser: (id: string) => client.get(`/api/user/${id}`),
 
+  analyzeCreditHealth: (file: File) => {
+    const formData = new FormData();
+    formData.append('statement', file);
+    return client.post('/api/credit-health/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
   calculateEmi: (principal: number, rate: number, tenure: number) =>
     client.post('/api/emi/calculate', { principal, rate, tenure }),
 

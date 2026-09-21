@@ -16,12 +16,15 @@ import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import MetricCard from '../components/MetricCard';
 import FloatingAI from '../components/FloatingAI';
+import { api } from '../api/client';
 
 export default function CreditHealth() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<'upload' | 'processing' | 'result'>('upload');
   const [progress, setProgress] = useState(0);
+  const [analysisUser, setAnalysisUser] = useState<typeof user>(null);
+  const [analysisError, setAnalysisError] = useState('');
 
   if (!user) return null;
 
@@ -33,7 +36,19 @@ export default function CreditHealth() {
     'Generating credit health',
   ];
 
-  const startProcessing = () => {
+  const startProcessing = async (file?: File) => {
+    setAnalysisError('');
+    if (file) {
+      try {
+        const response = await api.analyzeCreditHealth(file);
+        setAnalysisUser({ ...user, ...response.data });
+      } catch (error: any) {
+        setAnalysisError(error.response?.data?.error || 'Unable to analyze this statement');
+        return;
+      }
+    } else {
+      setAnalysisUser(user);
+    }
     setStep('processing');
     setProgress(0);
     let i = 0;
@@ -47,14 +62,16 @@ export default function CreditHealth() {
     }, 600);
   };
 
+  const profile = analysisUser || user;
+
   // ---- Factor calculations ----
-  const incomeStability = Math.min(25, user.income_stability_score * 25);
+  const incomeStability = Math.min(25, profile.income_stability_score * 25);
   const surplusAdequacy = Math.min(
     20,
-    (user.monthly_cashflow / user.monthly_income) * 20
+    (profile.monthly_cashflow / profile.monthly_income) * 20
   );
-  const repaymentDiscipline = user.repayment_rate * 25;
-  const balanceBuffer = Math.min(15, user.monthly_savings / 2000);
+  const repaymentDiscipline = profile.repayment_rate * 25;
+  const balanceBuffer = Math.min(15, profile.monthly_savings / 2000);
   const dataVintage = 12;
 
   const factors = [
@@ -66,16 +83,16 @@ export default function CreditHealth() {
   ];
 
   const trendData = [
-    { month: 'Apr', income: user.monthly_income * 0.9, expenses: user.monthly_expenses * 0.95 },
-    { month: 'May', income: user.monthly_income * 1.0, expenses: user.monthly_expenses * 0.98 },
-    { month: 'Jun', income: user.monthly_income * 1.05, expenses: user.monthly_expenses * 1.02 },
-    { month: 'Jul', income: user.monthly_income * 0.95, expenses: user.monthly_expenses * 0.97 },
-    { month: 'Aug', income: user.monthly_income * 1.02, expenses: user.monthly_expenses * 1.01 },
-    { month: 'Sep', income: user.monthly_income * 0.98, expenses: user.monthly_expenses },
+    { month: 'Apr', income: profile.monthly_income * 0.9, expenses: profile.monthly_expenses * 0.95 },
+    { month: 'May', income: profile.monthly_income * 1.0, expenses: profile.monthly_expenses * 0.98 },
+    { month: 'Jun', income: profile.monthly_income * 1.05, expenses: profile.monthly_expenses * 1.02 },
+    { month: 'Jul', income: profile.monthly_income * 0.95, expenses: profile.monthly_expenses * 0.97 },
+    { month: 'Aug', income: profile.monthly_income * 1.02, expenses: profile.monthly_expenses * 1.01 },
+    { month: 'Sep', income: profile.monthly_income * 0.98, expenses: profile.monthly_expenses },
   ];
 
-  const foirBased = user.monthly_income * 0.4 - user.monthly_emi;
-  const surplusBased = user.monthly_cashflow * 0.5;
+  const foirBased = profile.monthly_income * 0.4 - profile.monthly_emi;
+  const surplusBased = profile.monthly_cashflow * 0.5;
   const recommended = Math.min(foirBased, surplusBased);
 
   return (
@@ -123,8 +140,13 @@ export default function CreditHealth() {
               onClick={startProcessing}
             />
             <div className="md:col-span-3">
+              {analysisError && (
+                <p className="text-red-300 text-sm text-center mb-3">{analysisError}</p>
+              )}
               <button
-                onClick={startProcessing}
+                onClick={() => {
+                  void startProcessing();
+                }}
                 className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white font-bold py-4 rounded-xl hover:opacity-90 transition"
               >
                 ⚡ Load Sample Data &amp; Generate Score
@@ -188,7 +210,7 @@ export default function CreditHealth() {
                     fill="none"
                     stroke="url(#grad)"
                     strokeWidth="8"
-                    strokeDasharray={`${(user.cashflow_score / 100) * 283} 283`}
+                    strokeDasharray={`${(profile.cashflow_score / 100) * 283} 283`}
                     strokeLinecap="round"
                   />
                   <defs>
@@ -200,7 +222,7 @@ export default function CreditHealth() {
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <div className="text-4xl font-extrabold font-mono text-slate-100">
-                    {Math.round(user.cashflow_score)}
+                    {Math.round(profile.cashflow_score)}
                   </div>
                   <div className="text-slate-400 text-xs">/ 100</div>
                 </div>
@@ -211,7 +233,7 @@ export default function CreditHealth() {
                   Your Credit Health Score
                 </div>
                 <div className="text-3xl font-bold text-slate-100 mt-1">
-                  {user.risk_band}
+                  {profile.risk_band}
                 </div>
                 <div className="text-slate-400 mt-2">
                   Based on 6 months of transaction history
@@ -266,36 +288,36 @@ export default function CreditHealth() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <MetricCard
                 label="Avg Monthly Income"
-                value={`₹${user.monthly_income.toLocaleString('en-IN')}`}
+                value={`₹${profile.monthly_income.toLocaleString('en-IN')}`}
               />
               <MetricCard
                 label="Avg Monthly Expenses"
-                value={`₹${user.monthly_expenses.toLocaleString('en-IN')}`}
+                value={`₹${profile.monthly_expenses.toLocaleString('en-IN')}`}
                 accent="red"
               />
               <MetricCard
                 label="Avg Surplus"
-                value={`₹${user.monthly_cashflow.toLocaleString('en-IN')}`}
+                value={`₹${profile.monthly_cashflow.toLocaleString('en-IN')}`}
                 accent="blue"
               />
               <MetricCard
                 label="Income Volatility"
-                value={`${((1 - user.income_stability_score) * 100).toFixed(1)}%`}
+                value={`${((1 - profile.income_stability_score) * 100).toFixed(1)}%`}
                 accent="amber"
               />
               <MetricCard
                 label="Monthly EMI Outflow"
-                value={`₹${user.monthly_emi.toLocaleString('en-IN')}`}
+                value={`₹${profile.monthly_emi.toLocaleString('en-IN')}`}
                 accent="amber"
               />
               <MetricCard
                 label="Missed Payments"
-                value={user.missed_payments_12m}
-                accent={user.missed_payments_12m > 0 ? 'red' : 'green'}
+                value={profile.missed_payments_12m}
+                accent={profile.missed_payments_12m > 0 ? 'red' : 'green'}
               />
               <MetricCard
                 label="Monthly Savings"
-                value={`₹${user.monthly_savings.toLocaleString('en-IN')}`}
+                value={`₹${profile.monthly_savings.toLocaleString('en-IN')}`}
               />
               <MetricCard
                 label="Data History"
@@ -371,21 +393,21 @@ export default function CreditHealth() {
               <div className="bg-red-500/5 border border-red-500/40 rounded-xl p-6">
                 <h3 className="text-red-300 font-bold mb-3">⚠ Red Flags</h3>
                 <ul className="space-y-2 text-slate-300 text-sm">
-                  {user.income_stability_score < 0.7 && (
+                  {profile.income_stability_score < 0.7 && (
                     <li>• Income varies significantly month to month</li>
                   )}
-                  {user.missed_payments_12m > 0 && (
-                    <li>• {user.missed_payments_12m} payment bounce(s) detected</li>
+                  {profile.missed_payments_12m > 0 && (
+                    <li>• {profile.missed_payments_12m} payment bounce(s) detected</li>
                   )}
-                  {user.monthly_savings < 10000 && (
+                  {profile.monthly_savings < 10000 && (
                     <li>• Balance buffer is relatively low</li>
                   )}
-                  {user.foir_pct > 15 && (
-                    <li>• FOIR at {user.foir_pct}% is elevated</li>
+                  {profile.foir_pct > 15 && (
+                    <li>• FOIR at {profile.foir_pct}% is elevated</li>
                   )}
-                  {user.income_stability_score >= 0.7 &&
-                    user.missed_payments_12m === 0 &&
-                    user.monthly_savings >= 10000 && (
+                  {profile.income_stability_score >= 0.7 &&
+                    profile.missed_payments_12m === 0 &&
+                    profile.monthly_savings >= 10000 && (
                       <li>• No major flags detected — well managed</li>
                     )}
                 </ul>
@@ -395,12 +417,12 @@ export default function CreditHealth() {
                 <h3 className="text-green-300 font-bold mb-3">✓ Positive Signals</h3>
                 <ul className="space-y-2 text-slate-300 text-sm">
                   <li>• Regular income detected across the period</li>
-                  <li>• {user.repayment_rate * 100}% repayment discipline</li>
+                  <li>• {profile.repayment_rate * 100}% repayment discipline</li>
                   <li>• 6 months of transaction history available</li>
-                  {user.monthly_cashflow > 0 && (
+                  {profile.monthly_cashflow > 0 && (
                     <li>
                       • Positive monthly surplus of ₹
-                      {user.monthly_cashflow.toLocaleString('en-IN')}
+                      {profile.monthly_cashflow.toLocaleString('en-IN')}
                     </li>
                   )}
                 </ul>
