@@ -116,7 +116,12 @@ export default function CreditHealth() {
               accept=".csv,text/csv"
               onFileSelect={startProcessing}
             />
-            <UploadCard icon="✏️" title="Manual Entry" button="Add Data" />
+            <UploadCard
+              icon="✏️"
+              title="Manual Entry"
+              button="Add Data"
+              onClick={startProcessing}
+            />
             <div className="md:col-span-3">
               <button
                 onClick={startProcessing}
@@ -423,12 +428,14 @@ function UploadCard({
   button,
   accept,
   onFileSelect,
+  onClick,
 }: {
   icon: string;
   title: string;
   button: string;
   accept?: string;
   onFileSelect?: (file: File) => void;
+  onClick?: () => void;
 }) {
   const inputId = `credit-health-${title.toLowerCase().replace(/\s+/g, '-')}`;
 
@@ -459,7 +466,11 @@ function UploadCard({
           </label>
         </>
       ) : (
-        <button className="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition">
+        <button
+          type="button"
+          onClick={onClick}
+          className="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition"
+        >
           {button}
         </button>
       )}
