@@ -25,6 +25,15 @@ export default function CreditHealth() {
   const [progress, setProgress] = useState(0);
   const [analysisUser, setAnalysisUser] = useState<typeof user>(null);
   const [analysisError, setAnalysisError] = useState('');
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualData, setManualData] = useState({
+    monthly_income: String(user?.monthly_income ?? ''),
+    monthly_expenses: String(user?.monthly_expenses ?? ''),
+    monthly_emi: String(user?.monthly_emi ?? ''),
+    existing_debt: String(user?.existing_debt ?? ''),
+    monthly_savings: String(user?.monthly_savings ?? ''),
+    missed_payments_12m: String(user?.missed_payments_12m ?? '0'),
+  });
 
   if (!user) return null;
 
@@ -137,7 +146,18 @@ export default function CreditHealth() {
               icon="✏️"
               title="Manual Entry"
               button="Add Data"
-              onClick={startProcessing}
+              onClick={() => {
+                setManualData({
+                  monthly_income: String(user.monthly_income),
+                  monthly_expenses: String(user.monthly_expenses),
+                  monthly_emi: String(user.monthly_emi),
+                  existing_debt: String(user.existing_debt),
+                  monthly_savings: String(user.monthly_savings),
+                  missed_payments_12m: String(user.missed_payments_12m),
+                });
+                setAnalysisError('');
+                setManualOpen(true);
+              }}
             />
             <div className="md:col-span-3">
               {analysisError && (
@@ -438,6 +458,86 @@ export default function CreditHealth() {
           </>
         )}
       </main>
+
+      {manualOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const income = Number(manualData.monthly_income);
+              const expenses = Number(manualData.monthly_expenses);
+              const emi = Number(manualData.monthly_emi);
+              const debt = Number(manualData.existing_debt);
+              const savings = Number(manualData.monthly_savings);
+              const missedPayments = Number(manualData.missed_payments_12m);
+
+              if ([income, expenses, emi, debt, savings, missedPayments].some((value) => !Number.isFinite(value) || value < 0) || income <= 0) {
+                setAnalysisError('Enter valid non-negative amounts and an income greater than zero.');
+                return;
+              }
+
+              setManualOpen(false);
+              setAnalysisError('');
+              setAnalysisUser({
+                ...user,
+                monthly_income: income,
+                monthly_expenses: expenses,
+                monthly_emi: emi,
+                existing_debt: debt,
+                monthly_savings: savings,
+                missed_payments_12m: missedPayments,
+                monthly_cashflow: income - expenses - emi,
+                foir_pct: Number(((emi / income) * 100).toFixed(1)),
+              });
+              setStep('processing');
+              setProgress(0);
+              let stage = 0;
+              const interval = setInterval(() => {
+                stage++;
+                setProgress(stage);
+                if (stage >= stages.length) {
+                  clearInterval(interval);
+                  setTimeout(() => setStep('result'), 400);
+                }
+              }, 600);
+            }}
+            className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-bold text-slate-100">Enter Financial Details</h2>
+              <button type="button" onClick={() => setManualOpen(false)} className="text-slate-400 hover:text-slate-100 text-2xl" aria-label="Close manual entry">×</button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {([
+                ['monthly_income', 'Monthly income'],
+                ['monthly_expenses', 'Monthly expenses'],
+                ['monthly_emi', 'Monthly EMI'],
+                ['existing_debt', 'Existing debt'],
+                ['monthly_savings', 'Monthly savings'],
+                ['missed_payments_12m', 'Missed payments (12 months)'],
+              ] as const).map(([field, label]) => (
+                <label key={field} className="text-sm text-slate-300">
+                  {label}
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    required
+                    value={manualData[field]}
+                    onChange={(event) => setManualData({ ...manualData, [field]: event.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-slate-100 outline-none focus:border-green-400"
+                  />
+                </label>
+              ))}
+            </div>
+            {analysisError && <p className="mt-4 text-sm text-red-300">{analysisError}</p>}
+            <div className="mt-6 flex gap-3">
+              <button type="button" onClick={() => setManualOpen(false)} className="flex-1 rounded-lg bg-slate-700 py-3 font-bold text-slate-200 hover:bg-slate-600">Cancel</button>
+              <button type="submit" className="flex-1 rounded-lg bg-gradient-to-r from-green-500 to-blue-500 py-3 font-bold text-white hover:opacity-90">Generate Score</button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <FloatingAI />
     </div>
