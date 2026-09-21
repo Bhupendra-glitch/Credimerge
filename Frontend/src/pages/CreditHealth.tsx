@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { ChangeEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
@@ -102,8 +102,20 @@ export default function CreditHealth() {
         {/* Upload Step */}
         {step === 'upload' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <UploadCard icon="📄" title="Upload Statement" button="Upload PDF" />
-            <UploadCard icon="📊" title="Upload CSV" button="Upload CSV" />
+            <UploadCard
+              icon="📄"
+              title="Upload Statement"
+              button="Upload PDF"
+              accept=".pdf,application/pdf"
+              onFileSelect={startProcessing}
+            />
+            <UploadCard
+              icon="📊"
+              title="Upload CSV"
+              button="Upload CSV"
+              accept=".csv,text/csv"
+              onFileSelect={startProcessing}
+            />
             <UploadCard icon="✏️" title="Manual Entry" button="Add Data" />
             <div className="md:col-span-3">
               <button
@@ -409,18 +421,48 @@ function UploadCard({
   icon,
   title,
   button,
+  accept,
+  onFileSelect,
 }: {
   icon: string;
   title: string;
   button: string;
+  accept?: string;
+  onFileSelect?: (file: File) => void;
 }) {
+  const inputId = `credit-health-${title.toLowerCase().replace(/\s+/g, '-')}`;
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && onFileSelect) onFileSelect(file);
+    event.target.value = '';
+  };
+
   return (
     <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-6 text-center hover:border-green-500/40 transition cursor-pointer">
       <div className="text-4xl mb-3">{icon}</div>
       <div className="text-slate-100 font-bold mb-4">{title}</div>
-      <button className="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition">
-        {button}
-      </button>
+      {onFileSelect ? (
+        <>
+          <input
+            id={inputId}
+            type="file"
+            accept={accept}
+            onChange={handleFileChange}
+            className="sr-only"
+          />
+          <label
+            htmlFor={inputId}
+            className="block w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition cursor-pointer"
+          >
+            {button}
+          </label>
+        </>
+      ) : (
+        <button className="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition">
+          {button}
+        </button>
+      )}
     </div>
   );
 }
