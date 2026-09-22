@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getUserProfile = getUserProfile;
 exports.getUserAuthRecord = getUserAuthRecord;
@@ -9,21 +12,61 @@ exports.updateLoan = updateLoan;
 exports.deleteLoan = deleteLoan;
 exports.saveCreditReport = saveCreditReport;
 exports.getLatestCreditReport = getLatestCreditReport;
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const firebaseAdmin_1 = require("../config/firebaseAdmin");
-async function getUserProfile(userId) {
-    const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).get();
-    if (!snap.exists)
+function getDemoUser(userId) {
+    if (process.env.NODE_ENV === 'production')
         return null;
-    const data = { ...(snap.data() || {}) };
+    const csvPath = [
+        path_1.default.resolve(process.cwd(), 'src', 'data', 'users.csv'),
+        path_1.default.resolve(__dirname, '..', 'data', 'users.csv'),
+    ].find((candidate) => fs_1.default.existsSync(candidate));
+    if (!csvPath)
+        return null;
+    const [headerLine, ...dataLines] = fs_1.default.readFileSync(csvPath, 'utf8').trim().split(/\r?\n/);
+    const headers = headerLine.split(',').map((header) => header.trim());
+    const row = dataLines.find((line) => line.split(',')[0]?.trim().toUpperCase() === userId.toUpperCase());
+    if (!row)
+        return null;
+    const values = row.split(',');
+    return headers.reduce((user, header, index) => {
+        const value = values[index]?.trim() ?? '';
+        user[header] = value !== '' && !Number.isNaN(Number(value)) ? Number(value) : value;
+        return user;
+    }, {});
+}
+async function getUserProfile(userId) {
+    try {
+        const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).get();
+        if (snap.exists) {
+            const data = { ...(snap.data() || {}) };
+            delete data.passwordHash;
+            delete data.password;
+            return { userId: snap.id, ...data };
+        }
+    }
+    catch (error) {
+        console.warn('Firestore unavailable; using development demo data:', error instanceof Error ? error.message : error);
+    }
+    const data = getDemoUser(userId);
+    if (!data)
+        return null;
     delete data.passwordHash;
     delete data.password;
-    return { userId: snap.id, ...data };
+    return { userId: userId.toUpperCase(), ...data };
 }
 async function getUserAuthRecord(userId) {
-    const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).get();
-    if (!snap.exists)
-        return null;
-    return { userId: snap.id, ...(snap.data() || {}) };
+    try {
+        const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).get();
+        if (snap.exists)
+            return { userId: snap.id, ...(snap.data() || {}) };
+    }
+    catch (error) {
+        console.warn('Firestore unavailable; using development demo data:', error instanceof Error ? error.message : error);
+    }
+    const data = getDemoUser(userId);
+    return data ? { userId: userId.toUpperCase(), ...data } : null;
 }
 async function listLoans(userId) {
     const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();

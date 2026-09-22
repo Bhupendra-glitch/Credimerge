@@ -17,11 +17,9 @@ import Header from '../components/Header';
 import MetricCard from '../components/MetricCard';
 import FloatingAI from '../components/FloatingAI';
 import { api } from '../api/client';
-import { useLanguage } from '../context/LanguageContext';
 
 export default function CreditHealth() {
   const { user } = useAuth();
-  const { t } = useLanguage();
   const navigate = useNavigate();
   const [step, setStep] = useState<'upload' | 'processing' | 'result'>('upload');
   const [progress, setProgress] = useState(0);
@@ -146,8 +144,8 @@ export default function CreditHealth() {
             />
             <UploadCard
               icon="✏️"
-              title={t('manualEntry')}
-              button={t('addData')}
+              title="Manual Entry"
+              button="Add Data"
               onClick={() => {
                 setAnalysisError('');
                 setManualOpen(true);
@@ -521,17 +519,17 @@ export default function CreditHealth() {
             className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
           >
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-xl font-bold text-slate-100">{t('enterFinancialDetails')}</h2>
+              <h2 className="text-xl font-bold text-slate-100">Enter Financial Details</h2>
               <button type="button" onClick={() => setManualOpen(false)} className="text-slate-400 hover:text-slate-100 text-2xl" aria-label="Close manual entry">×</button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
                 ['monthly_income', 'Monthly income'],
-                ['monthly_expenses', t('monthlyExpenses')],
+                ['monthly_expenses', 'Monthly expenses'],
                 ['monthly_emi', 'Monthly EMI'],
-                ['existing_debt', t('existingDebt')],
-                ['monthly_savings', t('monthlySavings')],
-                ['missed_payments_12m', t('missedPayments')],
+                ['existing_debt', 'Existing debt'],
+                ['monthly_savings', 'Monthly savings'],
+                ['missed_payments_12m', 'Missed payments (12 months)'],
               ] as const).map(([field, label]) => (
                 <label key={field} className="text-sm text-slate-300">
                   {label}
@@ -549,8 +547,8 @@ export default function CreditHealth() {
             </div>
             {analysisError && <p className="mt-4 text-sm text-red-300">{analysisError}</p>}
             <div className="mt-6 flex gap-3">
-              <button type="button" onClick={() => setManualOpen(false)} className="flex-1 rounded-lg bg-slate-700 py-3 font-bold text-slate-200 hover:bg-slate-600">{t('cancel')}</button>
-              <button type="submit" className="flex-1 rounded-lg bg-gradient-to-r from-green-500 to-blue-500 py-3 font-bold text-white hover:opacity-90">{t('generateScore')}</button>
+              <button type="button" onClick={() => setManualOpen(false)} className="flex-1 rounded-lg bg-slate-700 py-3 font-bold text-slate-200 hover:bg-slate-600">Cancel</button>
+              <button type="submit" className="flex-1 rounded-lg bg-gradient-to-r from-green-500 to-blue-500 py-3 font-bold text-white hover:opacity-90">Generate Score</button>
             </div>
           </form>
         </div>

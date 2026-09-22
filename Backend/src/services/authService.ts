@@ -2,11 +2,9 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { getUserAuthRecord } from './firestoreService';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-
-if (!JWT_SECRET) {
+const JWT_SECRET: string = process.env.JWT_SECRET || (() => {
   throw new Error('JWT_SECRET is required');
-}
+})();
 
 export interface LoginResult {
   token: string;
@@ -37,7 +35,7 @@ export async function login(userId: string, password: string): Promise<LoginResu
 }
 
 export function verifyToken(token: string) {
-  return jwt.verify(token, JWT_SECRET) as { userId: string; workerType?: string };
+  return jwt.verify(token, JWT_SECRET) as unknown as { userId: string; workerType?: string };
 }
 
 export function hashPassword(password: string) {
