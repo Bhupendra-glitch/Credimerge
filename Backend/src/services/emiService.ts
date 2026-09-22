@@ -1,10 +1,5 @@
-/**
- * Deterministic EMI math engine.
- * All financial calculations happen here — never in the frontend.
- */
-
 export function calculateEmi(principal: number, annualRate: number, months: number): number {
-  if (principal <= 0 || months <= 0) return 0;
+  if (!Number.isFinite(principal) || !Number.isFinite(annualRate) || !Number.isFinite(months) || principal <= 0 || months <= 0) return 0;
   const r = annualRate / 12 / 100;
   if (r === 0) return principal / months;
   return (principal * r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
@@ -31,7 +26,7 @@ export function buildAmortizationTable(loan: Loan) {
 
   for (let m = 1; m <= loan.tenure && balance > 0; m++) {
     const interest = balance * monthlyRate;
-    const principalPaid = loan.emi - interest;
+    const principalPaid = Math.min(balance, Math.max(0, loan.emi - interest));
     balance = Math.max(0, balance - principalPaid);
     rows.push({
       month: m,
@@ -45,15 +40,16 @@ export function buildAmortizationTable(loan: Loan) {
 }
 
 export function aggregateLoans(loans: Loan[]) {
-  const totalOutstanding = loans.reduce((s, l) => s + l.outstanding, 0);
-  const totalEmi = loans.reduce((s, l) => s + l.emi, 0);
+  const totalOutstanding = loans.reduce((s, l) => s + Number(l.outstanding || 0), 0);
+  const totalEmi = loans.reduce((s, l) => s + Number(l.emi || 0), 0);
   const totalInt = loans.reduce(
-    (s, l) => s + totalInterest(l.outstanding, l.rate, l.tenure),
+    (s, l) => s + totalInterest(Number(l.outstanding || 0), Number(l.rate || 0), Number(l.tenure || 0)),
     0
   );
+
   const blendedRate =
     totalOutstanding > 0
-      ? loans.reduce((s, l) => s + l.outstanding * l.rate, 0) / totalOutstanding
+      ? loans.reduce((s, l) => s + Number(l.outstanding || 0) * Number(l.rate || 0), 0) / totalOutstanding
       : 0;
 
   return {
