@@ -8,11 +8,12 @@ exports.verifyToken = verifyToken;
 exports.hashPassword = hashPassword;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const dotenv_1 = __importDefault(require("dotenv"));
 const firestoreService_1 = require("./firestoreService");
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
+dotenv_1.default.config();
+const JWT_SECRET = process.env.JWT_SECRET || (() => {
     throw new Error('JWT_SECRET is required');
-}
+})();
 async function login(userId, password) {
     const user = await (0, firestoreService_1.getUserAuthRecord)(userId.trim().toUpperCase());
     if (!user)
