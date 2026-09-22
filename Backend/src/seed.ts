@@ -30,9 +30,13 @@ function parseCsv(text: string) {
 }
 
 async function main() {
-  const csvPath =
-    process.env.SEED_CSV ||
-    path.resolve(__dirname, 'data', 'users.csv');
+  const candidates = [
+    process.env.SEED_CSV ? path.resolve(process.env.SEED_CSV) : '',
+    path.resolve(process.cwd(), 'GigCred_synthetic_10_users.csv'),
+    path.resolve(__dirname, 'data', 'users.csv'),
+  ];
+  const csvPath = candidates.find((candidate) => candidate && fs.existsSync(candidate));
+  if (!csvPath) throw new Error(`Seed CSV not found. Checked: ${candidates.join('; ')}`);
 
   const rows = parseCsv(fs.readFileSync(csvPath, 'utf8'));
 

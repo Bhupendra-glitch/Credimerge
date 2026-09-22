@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
+import { api } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +23,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (savedToken && savedUser) {
       setToken(savedToken);
       setUser(JSON.parse(savedUser));
+      api.getMe()
+        .then((response) => {
+          setUser(response.data);
+          localStorage.setItem('credimerge_user', JSON.stringify(response.data));
+        })
+        .catch(() => {
+          localStorage.removeItem('credimerge_token');
+          localStorage.removeItem('credimerge_user');
+          setToken(null);
+          setUser(null);
+        })
+        .finally(() => setLoading(false));
+      return;
     }
     setLoading(false);
   }, []);

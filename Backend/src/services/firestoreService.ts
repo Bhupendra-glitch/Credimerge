@@ -19,9 +19,11 @@ function getDemoUser(userId: string): Record<string, any> | null {
   if (process.env.NODE_ENV === 'production') return null;
 
   const csvPath = [
+    process.env.SEED_CSV ? path.resolve(process.env.SEED_CSV) : '',
+    path.resolve(process.cwd(), 'GigCred_synthetic_10_users.csv'),
     path.resolve(process.cwd(), 'src', 'data', 'users.csv'),
     path.resolve(__dirname, '..', 'data', 'users.csv'),
-  ].find((candidate) => fs.existsSync(candidate));
+  ].find((candidate) => candidate && fs.existsSync(candidate));
 
   if (!csvPath) return null;
   const [headerLine, ...dataLines] = fs.readFileSync(csvPath, 'utf8').trim().split(/\r?\n/);
@@ -70,8 +72,13 @@ export async function getUserAuthRecord(userId: string) {
 }
 
 export async function listLoans(userId: string): Promise<LoanRecord[]> {
-  const snap = await getDb().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();
-  return snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as any) })) as LoanRecord[];
+  try {
+    const snap = await getDb().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();
+    return snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as any) })) as LoanRecord[];
+  } catch (error) {
+    console.warn('Firestore unavailable; returning no persisted loans:', error instanceof Error ? error.message : error);
+    return [];
+  }
 }
 
 export async function getLoan(userId: string, loanId: string): Promise<LoanRecord | null> {

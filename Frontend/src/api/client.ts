@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const client = axios.create({
   baseURL: API_URL,
@@ -20,6 +20,18 @@ export const api = {
     client.post('/api/login', { userId, password }),
 
   getUser: (id: string) => client.get(`/api/user/${id}`),
+
+  getMe: () => client.get('/api/me'),
+
+  getLoans: () => client.get('/api/loans'),
+
+  createLoan: (loan: Record<string, unknown>) => client.post('/api/loans', loan),
+
+  updateLoan: (id: string, loan: Record<string, unknown>) => client.put(`/api/loans/${id}`, loan),
+
+  deleteLoan: (id: string) => client.delete(`/api/loans/${id}`),
+
+  getLatestCreditReport: () => client.get('/api/credit-health/latest'),
 
   analyzeCreditHealth: (file: File) => {
     const formData = new FormData();

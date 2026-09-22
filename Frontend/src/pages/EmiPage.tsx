@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
@@ -23,50 +23,20 @@ export default function EmiPage() {
   const navigate = useNavigate();
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [amortization, setAmortization] = useState<any[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loansLoading, setLoansLoading] = useState(true);
+
+  useEffect(() => {
+    api.getLoans()
+      .then((response) => setLoans(response.data))
+      .catch((error) => console.error('Failed to load loans', error))
+      .finally(() => setLoansLoading(false));
+  }, []);
 
   if (!user) return null;
 
-  const loans: Loan[] = [
-    {
-      id: '1',
-      type: 'Personal Loan',
-      lender: 'HDFC Bank',
-      outstanding: Math.round(user.existing_debt * 0.4),
-      rate: 18,
-      tenure: 18,
-      emi: Math.round(user.monthly_emi * 0.37),
-    },
-    {
-      id: '2',
-      type: 'Credit Card',
-      lender: 'ICICI',
-      outstanding: user.credit_card_balance || 50000,
-      rate: 36,
-      tenure: 12,
-      emi: Math.round(user.monthly_emi * 0.27),
-    },
-    {
-      id: '3',
-      type: 'Vehicle Loan',
-      lender: 'Bajaj Finance',
-      outstanding: user.vehicle_loan_outstanding || 100000,
-      rate: 11,
-      tenure: 24,
-      emi: Math.round(user.monthly_emi * 0.27),
-    },
-    {
-      id: '4',
-      type: 'BNPL',
-      lender: 'Simpl',
-      outstanding: user.bnpl_balance || 20000,
-      rate: 24,
-      tenure: 6,
-      emi: Math.round(user.monthly_emi * 0.09),
-    },
-  ];
-
-  const highestInterest = [...loans].sort((a, b) => b.rate - a.rate)[0];
-  const largestEmi = [...loans].sort((a, b) => b.emi - a.emi)[0];
+  const highestInterest = loans.length ? [...loans].sort((a, b) => b.rate - a.rate)[0] : null;
+  const largestEmi = loans.length ? [...loans].sort((a, b) => b.emi - a.emi)[0] : null;
 
   const chartData = loans.map((l) => ({
     name: l.type.replace(' Loan', ''),
@@ -132,6 +102,10 @@ export default function EmiPage() {
 
         <h2 className="text-xl font-bold text-slate-100 mb-4">Your Loans</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {loansLoading && <p className="text-slate-400">Loading loans from your account...</p>}
+          {!loansLoading && loans.length === 0 && (
+            <p className="text-slate-400">No loans have been added to your account yet.</p>
+          )}
           {loans.map((loan) => (
             <div
               key={loan.id}
@@ -182,7 +156,7 @@ export default function EmiPage() {
               ⚠ Highest Interest Loan
             </div>
             <div className="text-slate-100 font-bold text-lg">
-              {highestInterest.type} — {highestInterest.rate}%
+              {highestInterest ? `${highestInterest.type} — ${highestInterest.rate}%` : 'No loan data available'}
             </div>
           </div>
           <div className="bg-amber-500/10 border border-amber-500/40 rounded-xl p-5">
@@ -190,7 +164,7 @@ export default function EmiPage() {
               💡 Largest EMI
             </div>
             <div className="text-slate-100 font-bold text-lg">
-              {largestEmi.type} — ₹{largestEmi.emi.toLocaleString('en-IN')}
+              {largestEmi ? `${largestEmi.type} — ₹${largestEmi.emi.toLocaleString('en-IN')}` : 'No loan data available'}
             </div>
           </div>
         </div>

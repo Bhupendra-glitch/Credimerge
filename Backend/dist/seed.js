@@ -29,8 +29,14 @@ function parseCsv(text) {
     });
 }
 async function main() {
-    const csvPath = process.env.SEED_CSV ||
-        path_1.default.resolve(__dirname, 'data', 'users.csv');
+    const candidates = [
+        process.env.SEED_CSV ? path_1.default.resolve(process.env.SEED_CSV) : '',
+        path_1.default.resolve(process.cwd(), 'GigCred_synthetic_10_users.csv'),
+        path_1.default.resolve(__dirname, 'data', 'users.csv'),
+    ];
+    const csvPath = candidates.find((candidate) => candidate && fs_1.default.existsSync(candidate));
+    if (!csvPath)
+        throw new Error(`Seed CSV not found. Checked: ${candidates.join('; ')}`);
     const rows = parseCsv(fs_1.default.readFileSync(csvPath, 'utf8'));
     if (!rows.length) {
         throw new Error('No users found in seed CSV');

@@ -19,9 +19,11 @@ function getDemoUser(userId) {
     if (process.env.NODE_ENV === 'production')
         return null;
     const csvPath = [
+        process.env.SEED_CSV ? path_1.default.resolve(process.env.SEED_CSV) : '',
+        path_1.default.resolve(process.cwd(), 'GigCred_synthetic_10_users.csv'),
         path_1.default.resolve(process.cwd(), 'src', 'data', 'users.csv'),
         path_1.default.resolve(__dirname, '..', 'data', 'users.csv'),
-    ].find((candidate) => fs_1.default.existsSync(candidate));
+    ].find((candidate) => candidate && fs_1.default.existsSync(candidate));
     if (!csvPath)
         return null;
     const [headerLine, ...dataLines] = fs_1.default.readFileSync(csvPath, 'utf8').trim().split(/\r?\n/);
@@ -69,8 +71,14 @@ async function getUserAuthRecord(userId) {
     return data ? { userId: userId.toUpperCase(), ...data } : null;
 }
 async function listLoans(userId) {
-    const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();
-    return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    try {
+        const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();
+        return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    }
+    catch (error) {
+        console.warn('Firestore unavailable; returning no persisted loans:', error instanceof Error ? error.message : error);
+        return [];
+    }
 }
 async function getLoan(userId, loanId) {
     const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').doc(loanId).get();
