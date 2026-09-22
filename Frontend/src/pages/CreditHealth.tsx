@@ -52,7 +52,10 @@ export default function CreditHealth() {
         const response = await api.analyzeCreditHealth(file);
         setAnalysisUser({ ...user, ...response.data });
       } catch (error: any) {
-        setAnalysisError(error.response?.data?.error || 'Unable to analyze this statement');
+        setAnalysisError(
+          error.response?.data?.error
+            || (error.request ? 'Unable to reach the credit-health service. Check the deployed API URL.' : 'Unable to analyze this statement'),
+        );
         return;
       }
     } else {

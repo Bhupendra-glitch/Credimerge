@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const configuredApiUrl = String(import.meta.env.VITE_API_URL || '').trim();
+const API_URL = configuredApiUrl || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 const client = axios.create({
   baseURL: API_URL,
@@ -36,9 +37,7 @@ export const api = {
   analyzeCreditHealth: (file: File) => {
     const formData = new FormData();
     formData.append('statement', file);
-    return client.post('/api/credit-health/analyze', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    return client.post('/api/credit-health/analyze', formData);
   },
 
   calculateEmi: (principal: number, rate: number, tenure: number) =>
