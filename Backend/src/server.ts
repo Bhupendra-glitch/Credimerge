@@ -246,9 +246,18 @@ app.post('/api/credit-health/analyze', authenticate, upload.single('statement'),
       isPdf ? 'application/pdf' : 'text/csv'
     );
 
-    // Member 3 can replace this implementation with the Python engine
-    // without changing the frontend route contract.
-    return res.json(await saveCreditReport(req.user!.userId, profile as any));
+    // The analysis result is useful even when Firestore is unavailable locally.
+    // Do not turn a successful file parse into an upload failure just because
+    // persistence is not configured in the current environment.
+    try {
+      return res.json(await saveCreditReport(req.user!.userId, profile as any));
+    } catch (persistenceError) {
+      console.warn(
+        'Credit report analyzed but could not be persisted; returning the result:',
+        persistenceError instanceof Error ? persistenceError.message : persistenceError,
+      );
+      return res.json({ ...profile, persisted: false });
+    }
   } catch (err: any) {
     return res.status(422).json({ error: err.message || 'Unable to analyze statement' });
   }
