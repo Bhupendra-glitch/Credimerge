@@ -1,4 +1,4 @@
-import { ChangeEvent, useState } from 'react';
+import { ChangeEvent, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart,
@@ -575,6 +575,7 @@ function UploadCard({
   onClick?: () => void;
 }) {
   const inputId = `credit-health-${title.toLowerCase().replace(/\s+/g, '-')}`;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -583,33 +584,46 @@ function UploadCard({
   };
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-6 text-center hover:border-green-500/40 transition cursor-pointer">
+    <div
+      className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-6 text-center hover:border-green-500/40 transition cursor-pointer"
+      onClick={() => onFileSelect ? fileInputRef.current?.click() : onClick?.()}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onFileSelect ? fileInputRef.current?.click() : onClick?.();
+        }
+      }}
+      role="button"
+      tabIndex={0}
+    >
       <div className="text-4xl mb-3">{icon}</div>
       <div className="text-slate-100 font-bold mb-4">{title}</div>
       {onFileSelect ? (
         <>
           <input
+            ref={fileInputRef}
             id={inputId}
             type="file"
             accept={accept}
             onChange={handleFileChange}
+            onClick={(event) => event.stopPropagation()}
             className="sr-only"
           />
-          <label
-            htmlFor={inputId}
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              fileInputRef.current?.click();
+            }}
             className="block w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition cursor-pointer"
           >
             {button}
-          </label>
+          </button>
         </>
       ) : (
-        <button
-          type="button"
-          onClick={onClick}
-          className="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition"
-        >
+        <div className="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 py-2 rounded-lg text-sm transition">
           {button}
-        </button>
+        </div>
       )}
     </div>
   );
