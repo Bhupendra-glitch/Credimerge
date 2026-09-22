@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../services/authService';
 
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: { userId: string; workerType?: string };
 }
 
 export function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
@@ -10,9 +10,12 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'No token provided' });
   }
-  const token = authHeader.split(' ')[1];
+
   try {
-    req.user = verifyToken(token);
+    const token = authHeader.slice(7).trim();
+    const payload = verifyToken(token);
+    if (!payload.userId) return res.status(401).json({ error: 'Invalid token' });
+    req.user = payload;
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });

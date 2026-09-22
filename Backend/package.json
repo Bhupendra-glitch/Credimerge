@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -14,7 +15,10 @@
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.4.0",
-    "pdf-parse": "^1.1.4"
+    "pdf-parse": "^1.1.4",
+    "@google-cloud/firestore": "^7.11.3",
+    "bcryptjs": "^2.4.3",
+    "firebase-admin": "^13.5.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
