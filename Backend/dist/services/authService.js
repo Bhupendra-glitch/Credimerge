@@ -5,20 +5,34 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.login = login;
 exports.verifyToken = verifyToken;
+exports.hashPassword = hashPassword;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const csvService_1 = require("./csvService");
-const JWT_SECRET = process.env.JWT_SECRET || 'credimerge_secret';
-function login(userId, password) {
-    const user = (0, csvService_1.findUser)(userId);
-    if (!user) {
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const firestoreService_1 = require("./firestoreService");
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is required');
+}
+async function login(userId, password) {
+    const user = await (0, firestoreService_1.getUserAuthRecord)(userId.trim().toUpperCase());
+    if (!user)
         throw new Error('Invalid User ID');
-    }
-    if (user.password !== password) {
+    let ok = false;
+    if (user.passwordHash)
+        ok = await bcryptjs_1.default.compare(password, user.passwordHash);
+    else if (user.password)
+        ok = user.password === password; // migration-only fallback
+    if (!ok)
         throw new Error('Incorrect password');
-    }
-    const token = jsonwebtoken_1.default.sign({ userId: user.user_id, workerType: user.worker_type }, JWT_SECRET, { expiresIn: '24h' });
-    return { token, user: (0, csvService_1.getSafeUser)(user) };
+    const token = jsonwebtoken_1.default.sign({ userId: user.userId, workerType: user.worker_type || user.workerType || null }, JWT_SECRET, { expiresIn: '24h' });
+    const safe = { ...user };
+    delete safe.password;
+    delete safe.passwordHash;
+    return { token, user: safe };
 }
 function verifyToken(token) {
     return jsonwebtoken_1.default.verify(token, JWT_SECRET);
+}
+function hashPassword(password) {
+    return bcryptjs_1.default.hash(password, 12);
 }

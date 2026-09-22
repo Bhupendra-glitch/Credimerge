@@ -7,9 +7,12 @@ function authenticate(req, res, next) {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'No token provided' });
     }
-    const token = authHeader.split(' ')[1];
     try {
-        req.user = (0, authService_1.verifyToken)(token);
+        const token = authHeader.slice(7).trim();
+        const payload = (0, authService_1.verifyToken)(token);
+        if (!payload.userId)
+            return res.status(401).json({ error: 'Invalid token' });
+        req.user = payload;
         next();
     }
     catch {

@@ -255,15 +255,14 @@ app.post('/api/credit-health/analyze', authenticate, upload.single('statement'),
   }
 });
 
-<<<<<<< HEAD
 app.post('/api/loan-app-detector/check', authenticate, (req, res) => {
   try {
-    res.json(assessLoanApp(req.body));
+    return res.json(assessLoanApp(req.body || {}));
   } catch (err: any) {
-    res.status(400).json({ error: err.message || 'Unable to assess loan app' });
+    return res.status(400).json({ error: err.message || 'Unable to assess loan app' });
   }
 });
-=======
+
 app.get('/api/credit-health/latest', authenticate, async (req: AuthRequest, res) => {
   try {
     const report = await getLatestCreditReport(req.user!.userId);
@@ -291,4 +290,3 @@ app.get('/api/reports/:id/download', authenticate, async (_req, res) => {
 app.listen(PORT, () => {
   console.log('🚀 CrediMerge API running on http://localhost:' + PORT);
 });
->>>>>>> 0141fbb3d2821a458eaa7041b596f07877beda35
