@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getDb, Timestamp } from '../config/firebaseAdmin';
+import { calculateEmi } from './emiService';
 
 export interface LoanRecord {
   id: string;
