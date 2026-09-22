@@ -25,11 +25,15 @@ export default function EmiPage() {
   const [amortization, setAmortization] = useState<any[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loansLoading, setLoansLoading] = useState(true);
+  const [loansError, setLoansError] = useState('');
 
   useEffect(() => {
     api.getLoans()
       .then((response) => setLoans(response.data))
-      .catch((error) => console.error('Failed to load loans', error))
+      .catch((error) => {
+        console.error('Failed to load loans', error);
+        setLoansError('Unable to load your current GigCred loan data.');
+      })
       .finally(() => setLoansLoading(false));
   }, []);
 
@@ -44,6 +48,15 @@ export default function EmiPage() {
     outstanding: l.outstanding,
     rate: l.rate,
   }));
+  const balanceData = Array.from(
+    { length: Math.max(12, ...loans.map((loan) => loan.tenure), 1) },
+    (_, index) => ({
+      month: `M${index + 1}`,
+      balance: loans.reduce((total, loan) => {
+        return total + projectedBalance(loan, index + 1);
+      }, 0),
+    }),
+  );
 
   const openDetails = async (loan: Loan) => {
     setSelectedLoan(loan);
@@ -103,8 +116,9 @@ export default function EmiPage() {
         <h2 className="text-xl font-bold text-slate-100 mb-4">Your Loans</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {loansLoading && <p className="text-slate-400">Loading loans from your account...</p>}
+          {!loansLoading && loansError && <p className="text-red-300">{loansError}</p>}
           {!loansLoading && loans.length === 0 && (
-            <p className="text-slate-400">No loans have been added to your account yet.</p>
+            <p className="text-slate-400">No current debt was found in your GigCred profile.</p>
           )}
           {loans.map((loan) => (
             <div
@@ -169,6 +183,12 @@ export default function EmiPage() {
           </div>
         </div>
 
+        {loans.some((loan) => loan.lender === 'GigCred profile estimate') && (
+          <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 mb-8 text-sm text-cyan-100">
+            Analysis is based on your current GigCred profile balances. Interest rates and tenures are demo estimates where the profile does not include loan-level terms.
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <ChartBox title="EMI by Loan">
             <ResponsiveContainer width="100%" height={250}>
@@ -227,13 +247,7 @@ export default function EmiPage() {
           <ChartBox title="Outstanding Balance Over Time">
             <ResponsiveContainer width="100%" height={250}>
               <LineChart
-                data={Array.from({ length: 12 }, (_, i) => ({
-                  month: `M${i + 1}`,
-                  balance: Math.max(
-                    0,
-                    user.existing_debt - (user.existing_debt / 12) * i
-                  ),
-                }))}
+                data={balanceData}
               >
                 <CartesianGrid stroke="#1e293b" />
                 <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
@@ -377,4 +391,16 @@ function ChartBox({
       {children}
     </div>
   );
+}
+
+function projectedBalance(loan: Loan, elapsedMonths: number) {
+  let balance = Math.max(0, Number(loan.outstanding) || 0);
+  const monthlyRate = Math.max(0, Number(loan.rate) || 0) / 1200;
+  const payment = Math.max(0, Number(loan.emi) || 0);
+
+  for (let month = 0; month < elapsedMonths && balance > 0; month += 1) {
+    const interest = balance * monthlyRate;
+    balance = Math.max(0, balance + interest - Math.min(balance + interest, payment));
+  }
+  return balance;
 }

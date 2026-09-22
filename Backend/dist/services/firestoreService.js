@@ -15,6 +15,7 @@ exports.getLatestCreditReport = getLatestCreditReport;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const firebaseAdmin_1 = require("../config/firebaseAdmin");
+const emiService_1 = require("./emiService");
 function getDemoUser(userId) {
     if (process.env.NODE_ENV === 'production')
         return null;
@@ -73,12 +74,57 @@ async function getUserAuthRecord(userId) {
 async function listLoans(userId) {
     try {
         const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();
-        return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        if (snap.docs.length) {
+            return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        }
     }
     catch (error) {
-        console.warn('Firestore unavailable; returning no persisted loans:', error instanceof Error ? error.message : error);
-        return [];
+        console.warn('Firestore unavailable; using GigCred profile loans:', error instanceof Error ? error.message : error);
     }
+    return buildProfileLoans(userId);
+}
+function buildProfileLoans(userId) {
+    if (process.env.NODE_ENV === 'production')
+        return [];
+    const profile = getDemoUser(userId);
+    if (!profile)
+        return [];
+    const balances = [
+        { key: 'credit_card_balance', type: 'Credit Card', rate: 36, tenure: 24 },
+        { key: 'bnpl_balance', type: 'BNPL', rate: 24, tenure: 12 },
+        { key: 'vehicle_loan_outstanding', type: 'Vehicle Loan', rate: 14, tenure: 36 },
+    ];
+    const profileDebt = Number(profile.existing_debt || 0);
+    const categorizedDebt = balances.reduce((sum, item) => sum + Number(profile[item.key] || 0), 0);
+    if (profileDebt > categorizedDebt) {
+        balances.push({ key: 'profile_debt', type: 'Other Debt', rate: 18, tenure: 24 });
+    }
+    const totalEmi = Number(profile.monthly_emi || 0);
+    return balances
+        .map((item, index) => {
+        const outstanding = item.key === 'profile_debt'
+            ? Math.max(0, profileDebt - categorizedDebt)
+            : Number(profile[item.key] || 0);
+        if (outstanding <= 0)
+            return null;
+        const calculatedEmi = (0, emiService_1.calculateEmi)(outstanding, item.rate, item.tenure);
+        const emi = totalEmi > 0 && profileDebt > 0
+            ? totalEmi * (outstanding / profileDebt)
+            : calculatedEmi;
+        return {
+            id: `gig-profile-${index + 1}`,
+            type: item.type,
+            lender: 'GigCred profile estimate',
+            outstanding: Math.round(outstanding * 100) / 100,
+            rate: item.rate,
+            tenure: item.tenure,
+            emi: Math.round(emi * 100) / 100,
+            createdAt: null,
+            updatedAt: null,
+            source: 'GigCred profile',
+        };
+    })
+        .filter((loan) => loan !== null);
 }
 async function getLoan(userId, loanId) {
     const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').doc(loanId).get();
