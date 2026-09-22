@@ -7,6 +7,7 @@ import { authenticate, AuthRequest } from './middleware/auth';
 import { aggregateLoans, calculateEmi, totalInterest, buildAmortizationTable } from './services/emiService';
 import multer from 'multer';
 import { buildStatementProfile } from './services/statementService';
+import { assessLoanApp } from './services/loanDetectorService';
 
 dotenv.config();
 
@@ -88,5 +89,13 @@ app.post('/api/credit-health/analyze', authenticate, upload.single('statement'),
     res.json(await buildStatementProfile(req.file.buffer, isPdf ? 'application/pdf' : 'text/csv'));
   } catch (err: any) {
     res.status(422).json({ error: err.message || 'Unable to analyze statement' });
+  }
+});
+
+app.post('/api/loan-app-detector/check', authenticate, (req, res) => {
+  try {
+    res.json(assessLoanApp(req.body));
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Unable to assess loan app' });
   }
 });

@@ -12,6 +12,7 @@ const auth_1 = require("./middleware/auth");
 const emiService_1 = require("./services/emiService");
 const multer_1 = __importDefault(require("multer"));
 const statementService_1 = require("./services/statementService");
+const loanDetectorService_1 = require("./services/loanDetectorService");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
@@ -88,5 +89,13 @@ app.post('/api/credit-health/analyze', auth_1.authenticate, upload.single('state
     }
     catch (err) {
         res.status(422).json({ error: err.message || 'Unable to analyze statement' });
+    }
+});
+app.post('/api/loan-app-detector/check', auth_1.authenticate, (req, res) => {
+    try {
+        res.json((0, loanDetectorService_1.assessLoanApp)(req.body));
+    }
+    catch (err) {
+        res.status(400).json({ error: err.message || 'Unable to assess loan app' });
     }
 });
