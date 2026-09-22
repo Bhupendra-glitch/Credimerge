@@ -43,7 +43,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <SectionCard
             icon="💳"
             title={t('emiManagement')}
@@ -59,18 +59,6 @@ export default function Home() {
             items={creditItems}
             ctaLabel={`${t('openCreditHealth')} →`}
             onOpen={() => navigate('/credit-health')}
-          />
-          <SectionCard
-            icon="🛡️"
-            title="Loan App Detector"
-            accent="blue"
-            items={[
-              { label: 'Screening', value: 'App & lender risks' },
-              { label: 'Signals', value: 'Permissions, fees, threats' },
-              { label: 'Result', value: 'Explainable risk score' },
-            ]}
-            ctaLabel="Check Loan App →"
-            onOpen={() => navigate('/loan-app-detector')}
           />
         </div>
 

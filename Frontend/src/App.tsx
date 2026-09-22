@@ -4,7 +4,6 @@ import Home from './pages/Home';
 import EmiPage from './pages/EmiPage';
 import CreditHealth from './pages/CreditHealth';
 import ProtectedRoute from './components/ProtectedRoute';
-import LoanAppDetector from './pages/LoanAppDetector';
 
 export default function App() {
   return (
@@ -31,14 +30,6 @@ export default function App() {
         element={
           <ProtectedRoute>
             <CreditHealth />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/loan-app-detector"
-        element={
-          <ProtectedRoute>
-            <LoanAppDetector />
           </ProtectedRoute>
         }
       />

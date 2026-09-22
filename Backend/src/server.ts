@@ -16,7 +16,6 @@ import {
   getLatestCreditReport,
 } from './services/firestoreService';
 import { buildStatementProfile } from './services/statementService';
-import { assessLoanApp } from './services/loanDetectorService';
 
 dotenv.config();
 
@@ -252,14 +251,6 @@ app.post('/api/credit-health/analyze', authenticate, upload.single('statement'),
     return res.json(await saveCreditReport(req.user!.userId, profile as any));
   } catch (err: any) {
     return res.status(422).json({ error: err.message || 'Unable to analyze statement' });
-  }
-});
-
-app.post('/api/loan-app-detector/check', authenticate, (req, res) => {
-  try {
-    return res.json(assessLoanApp(req.body || {}));
-  } catch (err: any) {
-    return res.status(400).json({ error: err.message || 'Unable to assess loan app' });
   }
 });
 

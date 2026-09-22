@@ -12,7 +12,6 @@ const authService_1 = require("./services/authService");
 const emiService_1 = require("./services/emiService");
 const firestoreService_1 = require("./services/firestoreService");
 const statementService_1 = require("./services/statementService");
-const loanDetectorService_1 = require("./services/loanDetectorService");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT || 5000);
@@ -225,14 +224,6 @@ app.post('/api/credit-health/analyze', auth_1.authenticate, upload.single('state
     }
     catch (err) {
         return res.status(422).json({ error: err.message || 'Unable to analyze statement' });
-    }
-});
-app.post('/api/loan-app-detector/check', auth_1.authenticate, (req, res) => {
-    try {
-        return res.json((0, loanDetectorService_1.assessLoanApp)(req.body || {}));
-    }
-    catch (err) {
-        return res.status(400).json({ error: err.message || 'Unable to assess loan app' });
     }
 });
 app.get('/api/credit-health/latest', auth_1.authenticate, async (req, res) => {

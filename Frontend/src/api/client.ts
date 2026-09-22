@@ -37,16 +37,6 @@ export const api = {
 
   aggregate: (loans: any[]) =>
     client.post('/api/emi/aggregate', { loans }),
-
-  checkLoanApp: (data: {
-    appName: string;
-    website?: string;
-    requestedPermissions?: string;
-    repaymentDays?: number;
-    upfrontFee?: boolean;
-    harassmentThreats?: boolean;
-    lenderLicenseConfirmed?: boolean;
-  }) => client.post('/api/loan-app-detector/check', data),
 };
 
 export default client;
