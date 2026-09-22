@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: credimerge-api
+    runtime: node
+    rootDir: Backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_ORIGIN
+        value: https://credimerge-xifa.vercel.app

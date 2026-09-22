@@ -3,7 +3,7 @@ import axios from 'axios';
 const browserApiUrl = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:5000`
   : 'http://localhost:5000';
-const API_URL = import.meta.env.VITE_API_URL || browserApiUrl;
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : browserApiUrl);
 
 const client = axios.create({
   baseURL: API_URL,
