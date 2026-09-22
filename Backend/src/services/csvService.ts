@@ -36,10 +36,26 @@ export interface UserRecord {
 
 let usersCache: UserRecord[] = [];
 
+function resolveUsersCsvPath(): string {
+  const candidates = [
+    path.resolve(__dirname, '..', 'data', 'users.csv'),
+    path.resolve(__dirname, '..', '..', 'src', 'data', 'users.csv'),
+    path.resolve(process.cwd(), 'src', 'data', 'users.csv'),
+    path.resolve(process.cwd(), 'data', 'users.csv'),
+  ];
+
+  const existing = candidates.find(filePath => fs.existsSync(filePath));
+  if (!existing) {
+    throw new Error(`Could not find users.csv in any expected location: ${candidates.join('; ')}`);
+  }
+
+  return existing;
+}
+
 export function loadUsers(): UserRecord[] {
   if (usersCache.length > 0) return usersCache;
 
-  const csvPath = path.join(__dirname, '..', 'data', 'users.csv');
+  const csvPath = resolveUsersCsvPath();
   const raw = fs.readFileSync(csvPath, 'utf-8');
   const lines = raw.trim().split('\n');
   const headers = lines[0].split(',').map(h => h.trim());
