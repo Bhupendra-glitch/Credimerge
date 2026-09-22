@@ -1,12 +1,23 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import SectionCard from '../components/SectionCard';
 import FloatingAI from '../components/FloatingAI';
+import ConsolidationSimulator from '../components/ConsolidationSimulator';
+import { api } from '../api/client';
+import { Loan } from '../types';
 
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [loans, setLoans] = useState<Loan[]>([]);
+
+  useEffect(() => {
+    api.getLoans()
+      .then((response) => setLoans(response.data))
+      .catch((error) => console.error('Failed to load loans for DebtLens simulator', error));
+  }, []);
 
   if (!user) return null;
 
@@ -34,6 +45,9 @@ export default function Home() {
       <Header />
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        <ConsolidationSimulator loans={loans} user={user} />
+
+        <div className="border-t border-slate-800 my-12" />
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-slate-100">Dashboard</h1>
           <p className="text-slate-400 mt-1">
