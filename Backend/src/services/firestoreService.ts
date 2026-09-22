@@ -131,59 +131,10 @@ export async function listLoans(userId: string): Promise<LoanRecord[]> {
       return snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as any) })) as LoanRecord[];
     }
   } catch (error) {
-<<<<<<< HEAD
-    console.warn('Firestore unavailable; using GigCred profile loans:', error instanceof Error ? error.message : error);
-  }
-  return buildProfileLoans(userId);
-}
-
-function buildProfileLoans(userId: string): LoanRecord[] {
-  if (process.env.NODE_ENV === 'production') return [];
-  const profile = getDemoUser(userId);
-  if (!profile) return [];
-
-  const balances = [
-    { key: 'credit_card_balance', type: 'Credit Card', rate: 36, tenure: 24 },
-    { key: 'bnpl_balance', type: 'BNPL', rate: 24, tenure: 12 },
-    { key: 'vehicle_loan_outstanding', type: 'Vehicle Loan', rate: 14, tenure: 36 },
-  ];
-  const profileDebt = Number(profile.existing_debt || 0);
-  const categorizedDebt = balances.reduce((sum, item) => sum + Number(profile[item.key] || 0), 0);
-  if (profileDebt > categorizedDebt) {
-    balances.push({ key: 'profile_debt', type: 'Other Debt', rate: 18, tenure: 24 });
-  }
-
-  const totalEmi = Number(profile.monthly_emi || 0);
-  return balances
-    .map((item, index) => {
-      const outstanding = item.key === 'profile_debt'
-        ? Math.max(0, profileDebt - categorizedDebt)
-        : Number(profile[item.key] || 0);
-      if (outstanding <= 0) return null;
-      const calculatedEmi = calculateEmi(outstanding, item.rate, item.tenure);
-      const emi = totalEmi > 0 && profileDebt > 0
-        ? totalEmi * (outstanding / profileDebt)
-        : calculatedEmi;
-      return {
-        id: `gig-profile-${index + 1}`,
-        type: item.type,
-        lender: 'GigCred profile estimate',
-        outstanding: Math.round(outstanding * 100) / 100,
-        rate: item.rate,
-        tenure: item.tenure,
-        emi: Math.round(emi * 100) / 100,
-        createdAt: null,
-        updatedAt: null,
-        source: 'GigCred profile',
-      } as LoanRecord;
-    })
-    .filter((loan): loan is LoanRecord => loan !== null);
-=======
     console.warn('Firestore unavailable; using development demo loans:', error instanceof Error ? error.message : error);
   }
 
   return getDemoLoans(userId);
->>>>>>> ed2b486a8d7fb38f44fee62ae9f3cde7c60835cc
 }
 
 export async function getLoan(userId: string, loanId: string): Promise<LoanRecord | null> {
