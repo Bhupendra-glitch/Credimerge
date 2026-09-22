@@ -27,12 +27,12 @@ export default function CreditHealth() {
   const [analysisError, setAnalysisError] = useState('');
   const [manualOpen, setManualOpen] = useState(false);
   const [manualData, setManualData] = useState({
-    monthly_income: String(user?.monthly_income ?? ''),
-    monthly_expenses: String(user?.monthly_expenses ?? ''),
-    monthly_emi: String(user?.monthly_emi ?? ''),
-    existing_debt: String(user?.existing_debt ?? ''),
-    monthly_savings: String(user?.monthly_savings ?? ''),
-    missed_payments_12m: String(user?.missed_payments_12m ?? '0'),
+    monthly_income: '',
+    monthly_expenses: '',
+    monthly_emi: '',
+    existing_debt: '',
+    monthly_savings: '',
+    missed_payments_12m: '',
   });
 
   if (!user) return null;
@@ -147,14 +147,6 @@ export default function CreditHealth() {
               title="Manual Entry"
               button="Add Data"
               onClick={() => {
-                setManualData({
-                  monthly_income: String(user.monthly_income),
-                  monthly_expenses: String(user.monthly_expenses),
-                  monthly_emi: String(user.monthly_emi),
-                  existing_debt: String(user.existing_debt),
-                  monthly_savings: String(user.monthly_savings),
-                  missed_payments_12m: String(user.missed_payments_12m),
-                });
                 setAnalysisError('');
                 setManualOpen(true);
               }}
@@ -488,6 +480,29 @@ export default function CreditHealth() {
                 missed_payments_12m: missedPayments,
                 monthly_cashflow: income - expenses - emi,
                 foir_pct: Number(((emi / income) * 100).toFixed(1)),
+                income_stability_score: 1,
+                repayment_rate: Math.max(0, 1 - missedPayments / 12),
+                cashflow_score: Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    45 + 25 + Math.max(0, 1 - missedPayments / 12) * 20 +
+                      (income - expenses - emi > 0 ? 10 : 0) +
+                      Math.min(15, savings / 2000)
+                  )
+                ),
+                risk_band:
+                  45 + 25 + Math.max(0, 1 - missedPayments / 12) * 20 +
+                    (income - expenses - emi > 0 ? 10 : 0) +
+                    Math.min(15, savings / 2000) >=
+                  70
+                    ? 'Low Risk'
+                    : 45 + 25 + Math.max(0, 1 - missedPayments / 12) * 20 +
+                        (income - expenses - emi > 0 ? 10 : 0) +
+                        Math.min(15, savings / 2000) >=
+                      50
+                    ? 'Moderate Risk'
+                    : 'High Risk',
               });
               setStep('processing');
               setProgress(0);
