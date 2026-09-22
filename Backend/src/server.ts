@@ -31,7 +31,14 @@ const origins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
   .map((value) => value.trim())
   .filter(Boolean);
 
-app.use(cors({ origin: origins.length === 1 ? origins[0] : origins }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || process.env.NODE_ENV !== 'production' || origins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin is not allowed by CORS'));
+  },
+}));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/', (_req, res) => {

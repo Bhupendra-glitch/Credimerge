@@ -23,7 +23,14 @@ const origins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
     .split(',')
     .map((value) => value.trim())
     .filter(Boolean);
-app.use((0, cors_1.default)({ origin: origins.length === 1 ? origins[0] : origins }));
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        if (!origin || process.env.NODE_ENV !== 'production' || origins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error('Origin is not allowed by CORS'));
+    },
+}));
 app.use(express_1.default.json({ limit: '1mb' }));
 app.get('/', (_req, res) => {
     res.json({ status: 'ok', service: 'CrediMerge API', version: '2.0' });
