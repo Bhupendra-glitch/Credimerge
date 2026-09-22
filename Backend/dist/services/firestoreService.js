@@ -38,6 +38,55 @@ function getDemoUser(userId) {
         return user;
     }, {});
 }
+function calculateDemoEmi(principal, annualRate, months) {
+    const monthlyRate = annualRate / 1200;
+    if (monthlyRate === 0)
+        return principal / months;
+    const factor = Math.pow(1 + monthlyRate, months);
+    return principal * monthlyRate * factor / (factor - 1);
+}
+function getDemoLoans(userId) {
+    const user = getDemoUser(userId);
+    if (!user)
+        return [];
+    const debt = Number(user.existing_debt || 0);
+    if (!Number.isFinite(debt) || debt <= 0)
+        return [];
+    const categories = [
+        { key: 'credit_card_balance', type: 'Credit Card', lender: 'Demo lender', rate: 36, tenure: 24 },
+        { key: 'bnpl_balance', type: 'BNPL', lender: 'Demo lender', rate: 24, tenure: 12 },
+        { key: 'vehicle_loan_outstanding', type: 'Vehicle Loan', lender: 'Demo lender', rate: 12, tenure: 48 },
+    ];
+    const loans = categories
+        .map((category) => ({ ...category, outstanding: Number(user[category.key] || 0) }))
+        .filter((loan) => Number.isFinite(loan.outstanding) && loan.outstanding > 0);
+    const categorizedDebt = loans.reduce((sum, loan) => sum + loan.outstanding, 0);
+    const remainingDebt = Math.max(0, debt - categorizedDebt);
+    if (remainingDebt > 0) {
+        loans.push({
+            key: 'existing_debt',
+            type: 'Personal Loan',
+            lender: 'Demo lender',
+            outstanding: remainingDebt,
+            rate: 18,
+            tenure: 36,
+        });
+    }
+    const monthlyEmi = Number(user.monthly_emi || 0);
+    return loans.map((loan, index) => ({
+        id: `demo-${userId.toUpperCase()}-${index + 1}`,
+        type: loan.type,
+        lender: loan.lender,
+        outstanding: +loan.outstanding.toFixed(2),
+        rate: loan.rate,
+        tenure: loan.tenure,
+        emi: +(monthlyEmi > 0
+            ? monthlyEmi * loan.outstanding / debt
+            : calculateDemoEmi(loan.outstanding, loan.rate, loan.tenure)).toFixed(2),
+        createdAt: null,
+        updatedAt: null,
+    }));
+}
 async function getUserProfile(userId) {
     try {
         const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).get();
@@ -73,12 +122,14 @@ async function getUserAuthRecord(userId) {
 async function listLoans(userId) {
     try {
         const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();
-        return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        if (snap.docs.length) {
+            return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        }
     }
     catch (error) {
-        console.warn('Firestore unavailable; returning no persisted loans:', error instanceof Error ? error.message : error);
-        return [];
+        console.warn('Firestore unavailable; using development demo loans:', error instanceof Error ? error.message : error);
     }
+    return getDemoLoans(userId);
 }
 async function getLoan(userId, loanId) {
     const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('loans').doc(loanId).get();
