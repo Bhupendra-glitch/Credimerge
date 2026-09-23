@@ -13,13 +13,18 @@ export function buildProfileLoanFallback(user: User): Loan[] {
   const debt = Number(user.existing_debt || 0);
   if (!Number.isFinite(debt) || debt <= 0) return [];
 
-  const categories = [
+  const categories: Array<{
+    key: keyof Pick<User, 'credit_card_balance' | 'bnpl_balance' | 'vehicle_loan_outstanding'>;
+    type: string;
+    rate: number;
+    tenure: number;
+  }> = [
     { key: 'credit_card_balance', type: 'Credit Card', rate: 36, tenure: 24 },
     { key: 'bnpl_balance', type: 'BNPL', rate: 24, tenure: 12 },
     { key: 'vehicle_loan_outstanding', type: 'Vehicle Loan', rate: 12, tenure: 48 },
-  ] as const;
+  ];
 
-  const loans = categories
+  const loans: Loan[] = categories
     .map((category) => ({
       id: `profile-${category.key}`,
       type: category.type,
@@ -27,6 +32,7 @@ export function buildProfileLoanFallback(user: User): Loan[] {
       outstanding: Number(user[category.key] || 0),
       rate: category.rate,
       tenure: category.tenure,
+      emi: 0,
     }))
     .filter((loan) => Number.isFinite(loan.outstanding) && loan.outstanding > 0);
 
@@ -40,6 +46,7 @@ export function buildProfileLoanFallback(user: User): Loan[] {
       outstanding: remainingDebt,
       rate: 18,
       tenure: 36,
+      emi: 0,
     });
   }
 
