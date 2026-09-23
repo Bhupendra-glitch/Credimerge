@@ -33,6 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setToken(savedToken);
       setUser(parsedUser);
+      if (savedToken.startsWith('demo-')) {
+        setLoading(false);
+        return;
+      }
+
       api.getMe()
         .then((response) => {
           setUser(response.data);
