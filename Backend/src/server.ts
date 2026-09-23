@@ -91,8 +91,10 @@ app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('AI chat error:', error);
 
-    return res.status(500).json({
-      error: 'AI service failed. Please try again.',
+    const errorMessage = error instanceof Error ? error.message : 'AI service unavailable';
+    const status = errorMessage.includes('API key is not configured') ? 503 : 502;
+    return res.status(status).json({
+      error: errorMessage,
     });
   }
 });
@@ -315,20 +317,6 @@ app.get('/api/credit-health/latest', authenticate, async (req: AuthRequest, res)
       : res.status(404).json({ error: 'No credit health report found' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Unable to load credit report' });
-  }
-});
-
-app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
-  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
-  if (!message) return res.status(400).json({ error: 'message is required' });
-
-  try {
-    const text = await askGemini(message, req.body?.context || {});
-    return res.json({ text, answer: text });
-  } catch (err: any) {
-    const messageText = err instanceof Error ? err.message : 'AI service unavailable';
-    const status = messageText.includes('API key is not configured') ? 503 : 502;
-    return res.status(status).json({ error: messageText });
   }
 });
 

@@ -8,13 +8,13 @@ export interface AIContext {
 }
 
 export async function askGemini(message: string, context: AIContext = {}): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim();
   if (!apiKey) {
-    throw new Error('Gemini API key is not configured.');
+    throw new Error('Gemini API key is not configured. Set GEMINI_API_KEY in the backend environment.');
   }
 
   const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+    model: process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash',
   });
 
   const prompt = `
