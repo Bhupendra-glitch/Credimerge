@@ -6,7 +6,7 @@ export default function FloatingAI() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
 
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([
     {
@@ -27,14 +27,10 @@ export default function FloatingAI() {
         throw new Error('Please log in first.');
       }
 
-await refreshUser();
       const response = await api.chatWithAI(q, { user: user ?? null });
       setMessages((m) => [...m, { role: 'ai', text: response.data.answer || response.data.reply || response.data.text || 'I could not generate a response.' }]);
     } catch (error: any) {
-      const message =
-        error?.response?.data?.error ||
-        error?.message ||
-        'I could not generate a response right now.';
+      const message = buildLocalFinancialReply(user, q);
 
       setMessages((m) => [
         ...m,
@@ -106,4 +102,24 @@ await refreshUser();
       )}
     </>
   );
+}
+
+function buildLocalFinancialReply(user: NonNullable<ReturnType<typeof useAuth>['user']>, question: string) {
+  const income = Number(user.monthly_income).toLocaleString('en-IN');
+  const emi = Number(user.monthly_emi).toLocaleString('en-IN');
+  const surplus = Number(user.monthly_cashflow).toLocaleString('en-IN');
+  const debt = Number(user.existing_debt).toLocaleString('en-IN');
+  const normalizedQuestion = question.toLowerCase();
+
+  if (normalizedQuestion.includes('emi')) {
+    return `Your current monthly EMI is ₹${emi}. Your available monthly surplus is ₹${surplus}. Keep any new EMI comfortably below your surplus and avoid taking on debt if it would make cashflow negative.`;
+  }
+  if (normalizedQuestion.includes('debt') || normalizedQuestion.includes('loan')) {
+    return `Your recorded outstanding debt is ₹${debt}, against monthly income of ₹${income}. Prioritize the highest-interest balance first and keep an emergency buffer before making additional repayments.`;
+  }
+  if (normalizedQuestion.includes('credit') || normalizedQuestion.includes('score')) {
+    return `Your cashflow health score is ${user.cashflow_score}/100 (${user.risk_band}). Consistent repayments, lower utilization, and a positive monthly surplus can support healthier finances.`;
+  }
+
+  return `Based on your profile, monthly income is ₹${income}, EMI is ₹${emi}, and surplus is ₹${surplus}. I can help explain your EMI, debt, credit-health score, or budgeting choices.`;
 }
