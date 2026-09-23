@@ -7,6 +7,9 @@ async function askGemini(message, context = {}) {
     if (!apiKey) {
         throw new Error('Gemini API key is not configured. Set GEMINI_API_KEY in the backend environment.');
     }
+    if (!/^AIza[0-9A-Za-z\-_]{35}$/.test(apiKey)) {
+        throw new Error('Invalid Gemini API key format. Use a valid Google AI Studio API key starting with AIza...');
+    }
     const model = new generative_ai_1.GoogleGenerativeAI(apiKey).getGenerativeModel({
         model: process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash',
     });
