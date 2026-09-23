@@ -7,6 +7,7 @@ interface AuthContextType {
   token: string | null;
   login: (user: User, token: string) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   loading: boolean;
 }
 
@@ -94,8 +95,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('credimerge_user');
   };
 
+  const refreshUser = async () => {
+    if (!token || token.startsWith('demo-')) {
+      return;
+    }
+
+    try {
+      const response = await api.getMe();
+      const nextUser = response.data as User;
+
+      if (!isValidUser(nextUser)) {
+        logout();
+        return;
+      }
+
+      setUser(nextUser);
+      localStorage.setItem('credimerge_user', JSON.stringify(nextUser));
+    } catch {
+      logout();
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

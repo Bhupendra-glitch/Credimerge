@@ -13,10 +13,14 @@ type UserProfileSummary = {
 };
 
 export async function generateFinancialAdvice(userId: string, message: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured. Add your Gemini API key to the backend environment.');
+    throw new Error('Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in the backend environment.');
+  }
+
+  if (!/^AIza[0-9A-Za-z\-_]{35}$/.test(apiKey.trim())) {
+    throw new Error('Invalid Gemini API key format. Generate a Google AI Studio API key (it usually starts with AIza...) and set it in GEMINI_API_KEY.');
   }
 
   const user = (await getUserProfile(userId)) as UserProfileSummary | null;

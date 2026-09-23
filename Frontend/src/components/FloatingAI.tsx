@@ -6,7 +6,7 @@ export default function FloatingAI() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
 
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([
     {
@@ -27,6 +27,7 @@ export default function FloatingAI() {
         throw new Error('Please log in first.');
       }
 
+      await refreshUser();
       const response = await api.chatWithAi(q);
       setMessages((m) => [...m, { role: 'ai', text: response.data.answer || 'I could not generate a response.' }]);
     } catch (error: any) {
