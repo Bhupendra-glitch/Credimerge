@@ -29,7 +29,10 @@ export default function EmiPage() {
 
   useEffect(() => {
     api.getLoans()
-      .then((response) => setLoans(response.data))
+      .then((response) => {
+        const loadedLoans = Array.isArray(response.data) ? response.data : [];
+        setLoans(loadedLoans.length ? loadedLoans : buildProfileLoanFallback(user));
+      })
       .catch((error) => {
         console.error('Failed to load loans', error);
         setLoans(buildProfileLoanFallback(user));
