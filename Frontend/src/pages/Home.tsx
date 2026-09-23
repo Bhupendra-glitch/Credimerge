@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import SectionCard from '../components/SectionCard';
 import FloatingAI from '../components/FloatingAI';
 import ConsolidationSimulator from '../components/ConsolidationSimulator';
-import { api } from '../api/client';
+import { api, buildProfileLoanFallback } from '../api/client';
 import { Loan } from '../types';
 
 export default function Home() {
@@ -16,7 +16,10 @@ export default function Home() {
   useEffect(() => {
     api.getLoans()
       .then((response) => setLoans(response.data))
-      .catch((error) => console.error('Failed to load loans for DebtLens simulator', error));
+      .catch((error) => {
+        console.error('Failed to load loans for DebtLens simulator', error);
+        setLoans(buildProfileLoanFallback(user));
+      });
   }, []);
 
   if (!user) return null;

@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import MetricCard from '../components/MetricCard';
 import FloatingAI from '../components/FloatingAI';
-import { api } from '../api/client';
+import { api, buildProfileLoanFallback } from '../api/client';
 import { Loan } from '../types';
 
 export default function EmiPage() {
@@ -32,7 +32,8 @@ export default function EmiPage() {
       .then((response) => setLoans(response.data))
       .catch((error) => {
         console.error('Failed to load loans', error);
-        setLoansError('Unable to load your current GigCred loan data.');
+        setLoans(buildProfileLoanFallback(user));
+        setLoansError('Showing estimated loans from your GigCred profile while the loan service is unavailable.');
       })
       .finally(() => setLoansLoading(false));
   }, []);
