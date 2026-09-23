@@ -11,7 +11,9 @@ import { Loan } from '../types';
 export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loans, setLoans] = useState<Loan[]>(() =>
+    user ? buildProfileLoanFallback(user) : []
+  );
 
   useEffect(() => {
     api.getLoans()

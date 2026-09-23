@@ -23,7 +23,9 @@ export default function EmiPage() {
   const navigate = useNavigate();
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [amortization, setAmortization] = useState<any[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loans, setLoans] = useState<Loan[]>(() =>
+    user ? buildProfileLoanFallback(user) : []
+  );
   const [loansLoading, setLoansLoading] = useState(true);
   const [loansError, setLoansError] = useState('');
 
