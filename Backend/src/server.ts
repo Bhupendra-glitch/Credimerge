@@ -16,6 +16,7 @@ import {
   getLatestCreditReport,
 } from './services/firestoreService';
 import { buildStatementProfile } from './services/statementService';
+import { generateFinancialAdvice } from './services/aiService';
 
 dotenv.config();
 
@@ -282,10 +283,22 @@ app.get('/api/credit-health/latest', authenticate, async (req: AuthRequest, res)
 });
 
 // Reserved integration contracts for Member 4.
-app.post('/api/ai/chat', authenticate, async (_req, res) => {
-  return res.status(501).json({
-    error: 'AI service is not configured yet. Integrate the server-side Gemini service here.',
-  });
+app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
+  const { message } = req.body || {};
+  const prompt = typeof message === 'string' ? message.trim() : '';
+
+  if (!prompt) {
+    return res.status(400).json({ error: 'Message is required' });
+  }
+
+  try {
+    const answer = await generateFinancialAdvice(req.user!.userId, prompt);
+    return res.json({ answer });
+  } catch (err: any) {
+    return res.status(500).json({
+      error: err.message || 'Unable to generate AI response',
+    });
+  }
 });
 
 app.get('/api/reports/:id/download', authenticate, async (_req, res) => {

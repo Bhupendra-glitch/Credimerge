@@ -51,6 +51,9 @@ export const api = {
 
   aggregate: (loans: any[]) =>
     client.post('/api/emi/aggregate', { loans }),
+
+  chatWithAi: (message: string) =>
+    client.post('/api/ai/chat', { message }),
 };
 
 export default client;
