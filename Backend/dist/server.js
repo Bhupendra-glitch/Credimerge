@@ -12,6 +12,7 @@ const authService_1 = require("./services/authService");
 const emiService_1 = require("./services/emiService");
 const firestoreService_1 = require("./services/firestoreService");
 const statementService_1 = require("./services/statementService");
+const aiService_1 = require("./services/aiService");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT || 5000);
@@ -252,10 +253,21 @@ app.get('/api/credit-health/latest', auth_1.authenticate, async (req, res) => {
     }
 });
 // Reserved integration contracts for Member 4.
-app.post('/api/ai/chat', auth_1.authenticate, async (_req, res) => {
-    return res.status(501).json({
-        error: 'AI service is not configured yet. Integrate the server-side Gemini service here.',
-    });
+app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
+    const { message } = req.body || {};
+    const prompt = typeof message === 'string' ? message.trim() : '';
+    if (!prompt) {
+        return res.status(400).json({ error: 'Message is required' });
+    }
+    try {
+        const answer = await (0, aiService_1.generateFinancialAdvice)(req.user.userId, prompt);
+        return res.json({ answer });
+    }
+    catch (err) {
+        return res.status(500).json({
+            error: err.message || 'Unable to generate AI response',
+        });
+    }
 });
 app.get('/api/reports/:id/download', auth_1.authenticate, async (_req, res) => {
     return res.status(501).json({

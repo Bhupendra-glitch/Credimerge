@@ -1,5 +1,17 @@
 import { getUserProfile } from './firestoreService';
 
+type UserProfileSummary = {
+  userId?: string;
+  user_id?: string;
+  monthly_income?: number | string;
+  monthly_emi?: number | string;
+  monthly_cashflow?: number | string;
+  existing_debt?: number | string;
+  cashflow_score?: number | string;
+  risk_band?: string;
+  active_loan_count?: number | string;
+};
+
 export async function generateFinancialAdvice(userId: string, message: string): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -7,7 +19,7 @@ export async function generateFinancialAdvice(userId: string, message: string): 
     throw new Error('GEMINI_API_KEY is not configured. Add your Gemini API key to the backend environment.');
   }
 
-  const user = await getUserProfile(userId);
+  const user = (await getUserProfile(userId)) as UserProfileSummary | null;
   const profile = user ? [
     `User ID: ${user.userId ?? user.user_id ?? 'N/A'}`,
     `Monthly income: ₹${Number(user.monthly_income ?? 0).toLocaleString('en-IN')}`,
