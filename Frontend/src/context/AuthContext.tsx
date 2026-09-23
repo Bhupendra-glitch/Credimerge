@@ -21,8 +21,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const savedToken = localStorage.getItem('credimerge_token');
     const savedUser = localStorage.getItem('credimerge_user');
     if (savedToken && savedUser) {
+      let parsedUser: User;
+      try {
+        parsedUser = JSON.parse(savedUser) as User;
+      } catch {
+        localStorage.removeItem('credimerge_token');
+        localStorage.removeItem('credimerge_user');
+        setLoading(false);
+        return;
+      }
+
       setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      setUser(parsedUser);
       api.getMe()
         .then((response) => {
           setUser(response.data);
