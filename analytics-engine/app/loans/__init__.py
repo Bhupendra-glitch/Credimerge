@@ -1,0 +1,1 @@
+"""Loan analytics module placeholder."""

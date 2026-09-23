@@ -1,0 +1,1 @@
+"""Consolidation analytics module placeholder."""

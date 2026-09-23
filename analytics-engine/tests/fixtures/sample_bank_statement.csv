@@ -1,0 +1,7 @@
+Date,Description,Amount,Type
+2026-01-15,Salary,"40,000",CREDIT
+2026-01-03,Rent,10000,DEBIT
+2026-01-05,Utility Bill,2500,DEBIT
+2026-01-07,EMI Payment,5000,DEBIT
+2026-01-10,"  UPI   Merchant   Payment  ",1200,DEBIT
+2026-01-01,Salary,40000,CREDIT
