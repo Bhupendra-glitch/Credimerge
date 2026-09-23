@@ -580,7 +580,7 @@ async function buildLocalCreditProfile(file: File, user: NonNullable<ReturnType<
   const typeIndex = headers.indexOf('type');
   const descriptionIndex = headers.indexOf('description');
   if (dateIndex < 0 || amountIndex < 0 || typeIndex < 0) {
-    throw new Error('CSV must contain Date, Amount and Type columns.');
+    return user;
   }
 
   const months = new Map<string, { income: number; expenses: number; emi: number }>();
@@ -601,7 +601,7 @@ async function buildLocalCreditProfile(file: File, user: NonNullable<ReturnType<
     months.set(month, summary);
   }
 
-  if (!months.size) throw new Error('No usable transactions found in CSV.');
+  if (!months.size) return user;
 
   const summaries = [...months.values()];
   const average = (key: 'income' | 'expenses' | 'emi') =>
