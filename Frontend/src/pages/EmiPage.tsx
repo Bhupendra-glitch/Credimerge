@@ -37,8 +37,13 @@ export default function EmiPage() {
       })
       .catch((error) => {
         console.error('Failed to load loans', error);
-        setLoans(buildProfileLoanFallback(user));
-        setLoansError('Showing estimated loans from your GigCred profile while the loan service is unavailable.');
+        const fallbackLoans = buildProfileLoanFallback(user);
+        setLoans(fallbackLoans);
+        setLoansError(
+          fallbackLoans.length
+            ? ''
+            : 'Unable to load your current GigCred loan data.'
+        );
       })
       .finally(() => setLoansLoading(false));
   }, []);
