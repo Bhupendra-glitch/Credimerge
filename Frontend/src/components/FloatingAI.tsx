@@ -27,11 +27,28 @@ export default function FloatingAI() {
         throw new Error('Please log in first.');
       }
 
-      const response = await api.chatWithAi(q);
-      setMessages((m) => [...m, { role: 'ai', text: response.data.answer || 'I could not generate a response.' }]);
+      const response = await api.chatWithAI(q);
+
+      setMessages((m) => [
+        ...m,
+        {
+          role: 'ai',
+          text: response.data.reply || 'I could not generate a response.',
+        },
+      ]);
     } catch (error: any) {
-      const message = error?.response?.data?.error || error?.message || 'I could not generate a response right now.';
-      setMessages((m) => [...m, { role: 'ai', text: message }]);
+      const message =
+        error?.response?.data?.error ||
+        error?.message ||
+        'I could not generate a response right now.';
+
+      setMessages((m) => [
+        ...m,
+        {
+          role: 'ai',
+          text: message,
+        },
+      ]);
     } finally {
       setLoading(false);
     }

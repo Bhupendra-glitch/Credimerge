@@ -16,11 +16,7 @@ import {
   getLatestCreditReport,
 } from './services/firestoreService';
 import { buildStatementProfile } from './services/statementService';
-<<<<<<< HEAD
-import { askGemini } from './services/geminiService';
-=======
 import { generateFinancialAdvice } from './services/aiService';
->>>>>>> de926d5364dbea3758568bd4733a8d52bbf87ec1
 
 dotenv.config();
 
@@ -52,53 +48,6 @@ app.get('/', (_req, res) => {
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'healthy' });
-});
-
-app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
-  try {
-    const { message } = req.body;
-
-    if (!message || typeof message !== 'string') {
-      return res.status(400).json({
-        error: 'Message is required.',
-      });
-    }
-
-    const userId = req.user!.userId;
-
-    const user = await getUserProfile(userId) as Record<string, any> | null;
-    const loans = await listLoans(userId);
-    const creditHealth = await getLatestCreditReport(userId);
-
-    const dashboard = {
-      monthlyIncome: user?.monthly_income,
-      monthlyEMI: user?.monthly_emi,
-      existingDebt: user?.existing_debt,
-      monthlyCashflow: user?.monthly_cashflow,
-      activeLoanCount: user?.active_loan_count,
-      cashflowScore: user?.cashflow_score,
-      riskBand: user?.risk_band,
-    };
-
-    const reply = await askGemini(message, {
-      user,
-      loans,
-      dashboard,
-      creditHealth,
-    });
-
-    return res.json({
-      text: reply,
-      reply,
-      sources: ['dashboard', 'loans', 'credit-health'],
-    });
-  } catch (error) {
-    console.error('AI chat error:', error);
-
-    return res.status(500).json({
-      error: 'AI service failed. Please try again.',
-    });
-  }
 });
 
 app.get('/api/me', authenticate, async (req: AuthRequest, res) => {
@@ -322,36 +271,17 @@ app.get('/api/credit-health/latest', authenticate, async (req: AuthRequest, res)
   }
 });
 
-<<<<<<< HEAD
 app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
-  if (!message) return res.status(400).json({ error: 'message is required' });
+  if (!message) return res.status(400).json({ error: 'Message is required' });
 
   try {
-    const text = await askGemini(message, req.body?.context || {});
-    return res.json({ text });
+    const answer = await generateFinancialAdvice(req.user!.userId, message);
+    return res.json({ text: answer, answer });
   } catch (err: any) {
-    const messageText = err instanceof Error ? err.message : 'AI service unavailable';
-    const status = messageText.includes('API key is not configured') ? 503 : 502;
-    return res.status(status).json({ error: messageText });
-=======
-// Reserved integration contracts for Member 4.
-app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
-  const { message } = req.body || {};
-  const prompt = typeof message === 'string' ? message.trim() : '';
-
-  if (!prompt) {
-    return res.status(400).json({ error: 'Message is required' });
-  }
-
-  try {
-    const answer = await generateFinancialAdvice(req.user!.userId, prompt);
-    return res.json({ answer });
-  } catch (err: any) {
-    return res.status(500).json({
-      error: err.message || 'Unable to generate AI response',
-    });
->>>>>>> de926d5364dbea3758568bd4733a8d52bbf87ec1
+    const errorMessage = err instanceof Error ? err.message : 'Unable to generate AI response';
+    const status = errorMessage.includes('GEMINI_API_KEY') ? 503 : 502;
+    return res.status(status).json({ error: errorMessage });
   }
 });
 
