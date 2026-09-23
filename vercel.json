@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node ./node_modules/vite/bin/vite.js build",
+  "buildCommand": "npm run build",
   "outputDirectory": "Frontend/dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
