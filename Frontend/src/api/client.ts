@@ -1,12 +1,55 @@
 import axios from 'axios';
+import type { Loan, User } from '../types';
 
 const configuredApiUrl = String(import.meta.env.VITE_API_URL || '').trim();
 const browserApiUrl = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:5000`
   : 'http://localhost:5000';
 const productionApiUrl = 'https://credimerge-api.onrender.com';
-const API_URL = (configuredApiUrl || (import.meta.env.PROD ? productionApiUrl : browserApiUrl))
+export const API_URL = (configuredApiUrl || (import.meta.env.PROD ? productionApiUrl : browserApiUrl))
   .replace(/\/$/, '');
+
+export function buildProfileLoanFallback(user: User): Loan[] {
+  const debt = Number(user.existing_debt || 0);
+  if (!Number.isFinite(debt) || debt <= 0) return [];
+
+  const categories = [
+    { key: 'credit_card_balance', type: 'Credit Card', rate: 36, tenure: 24 },
+    { key: 'bnpl_balance', type: 'BNPL', rate: 24, tenure: 12 },
+    { key: 'vehicle_loan_outstanding', type: 'Vehicle Loan', rate: 12, tenure: 48 },
+  ] as const;
+
+  const loans = categories
+    .map((category) => ({
+      id: `profile-${category.key}`,
+      type: category.type,
+      lender: 'GigCred profile estimate',
+      outstanding: Number(user[category.key] || 0),
+      rate: category.rate,
+      tenure: category.tenure,
+    }))
+    .filter((loan) => Number.isFinite(loan.outstanding) && loan.outstanding > 0);
+
+  const categorizedDebt = loans.reduce((total, loan) => total + loan.outstanding, 0);
+  const remainingDebt = Math.max(0, debt - categorizedDebt);
+  if (remainingDebt > 0) {
+    loans.push({
+      id: 'profile-existing-debt',
+      type: 'Personal Loan',
+      lender: 'GigCred profile estimate',
+      outstanding: remainingDebt,
+      rate: 18,
+      tenure: 36,
+    });
+  }
+
+  return loans.map((loan) => ({
+    ...loan,
+    emi: Number(user.monthly_emi) > 0
+      ? +(Number(user.monthly_emi) * loan.outstanding / debt).toFixed(2)
+      : 0,
+  }));
+}
 
 const client = axios.create({
   baseURL: API_URL,

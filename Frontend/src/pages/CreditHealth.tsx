@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import MetricCard from '../components/MetricCard';
 import FloatingAI from '../components/FloatingAI';
-import { api } from '../api/client';
+import { api, API_URL } from '../api/client';
 
 export default function CreditHealth() {
   const { user } = useAuth();
@@ -52,11 +52,16 @@ export default function CreditHealth() {
         const response = await api.analyzeCreditHealth(file);
         setAnalysisUser({ ...user, ...response.data });
       } catch (error: any) {
-        setAnalysisError(
-          error.response?.data?.error
-            || (error.request ? 'Unable to reach the credit-health service. Check the deployed API URL.' : 'Unable to analyze this statement'),
-        );
-        return;
+        try {
+          setAnalysisUser(await buildLocalCreditProfile(file, user));
+        } catch (localError) {
+          console.error('Local credit-health analysis failed', localError);
+          setAnalysisError(
+            error.response?.data?.error
+              || (error.request ? `Unable to reach the credit-health service at ${API_URL}.` : 'Unable to analyze this statement'),
+          );
+          return;
+        }
       }
     } else {
       setAnalysisUser(user);
@@ -560,6 +565,85 @@ export default function CreditHealth() {
       <FloatingAI />
     </div>
   );
+}
+
+async function buildLocalCreditProfile(file: File, user: NonNullable<ReturnType<typeof useAuth>['user']>) {
+  if (!file.name.toLowerCase().endsWith('.csv')) return user;
+
+  const text = await file.text();
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) throw new Error('CSV statement is empty.');
+
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim().toLowerCase());
+  const dateIndex = headers.indexOf('date');
+  const amountIndex = headers.indexOf('amount');
+  const typeIndex = headers.indexOf('type');
+  const descriptionIndex = headers.indexOf('description');
+  if (dateIndex < 0 || amountIndex < 0 || typeIndex < 0) {
+    throw new Error('CSV must contain Date, Amount and Type columns.');
+  }
+
+  const months = new Map<string, { income: number; expenses: number; emi: number }>();
+  for (const line of lines.slice(1)) {
+    const values = parseCsvLine(line);
+    const month = values[dateIndex]?.slice(0, 7);
+    const amount = Math.abs(Number(values[amountIndex]?.replace(/,/g, '')));
+    const type = values[typeIndex]?.trim().toUpperCase();
+    if (!month || !Number.isFinite(amount) || amount <= 0) continue;
+
+    const summary = months.get(month) || { income: 0, expenses: 0, emi: 0 };
+    if (type === 'CREDIT') summary.income += amount;
+    if (type === 'DEBIT') {
+      const description = values[descriptionIndex] || '';
+      if (/emi|loan|repayment/i.test(description)) summary.emi += amount;
+      else summary.expenses += amount;
+    }
+    months.set(month, summary);
+  }
+
+  if (!months.size) throw new Error('No usable transactions found in CSV.');
+
+  const summaries = [...months.values()];
+  const average = (key: 'income' | 'expenses' | 'emi') =>
+    summaries.reduce((total, summary) => total + summary[key], 0) / summaries.length;
+  const monthlyIncome = average('income');
+  const monthlyExpenses = average('expenses');
+  const monthlyEmi = average('emi');
+  const monthlyCashflow = monthlyIncome - monthlyExpenses - monthlyEmi;
+  const score = Math.max(0, Math.min(100,
+    45 + (monthlyIncome > 0 ? Math.min(25, (monthlyIncome - monthlyExpenses) / monthlyIncome * 25) : 0)
+      + (monthlyCashflow > 0 ? 10 : 0)
+      + Math.min(15, Math.max(0, monthlyCashflow) / 2000)
+  ));
+
+  return {
+    ...user,
+    monthly_income: Math.round(monthlyIncome),
+    monthly_expenses: Math.round(monthlyExpenses),
+    monthly_emi: Math.round(monthlyEmi),
+    monthly_savings: Math.max(0, Math.round(monthlyCashflow)),
+    monthly_cashflow: Math.round(monthlyCashflow),
+    foir_pct: monthlyIncome ? Number(((monthlyEmi / monthlyIncome) * 100).toFixed(1)) : 0,
+    income_stability_score: 1,
+    repayment_rate: 1,
+    cashflow_score: Number(score.toFixed(1)),
+    risk_band: score >= 70 ? 'Low Risk' : score >= 50 ? 'Moderate Risk' : 'High Risk',
+  };
+}
+
+function parseCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let value = '';
+  let quoted = false;
+  for (const character of line) {
+    if (character === '"') quoted = !quoted;
+    else if (character === ',' && !quoted) {
+      values.push(value);
+      value = '';
+    } else value += character;
+  }
+  values.push(value);
+  return values;
 }
 
 function UploadCard({

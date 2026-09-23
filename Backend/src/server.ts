@@ -16,7 +16,7 @@ import {
   getLatestCreditReport,
 } from './services/firestoreService';
 import { buildStatementProfile } from './services/statementService';
-import { generateFinancialAdvice } from './services/aiService';
+import { askGemini } from './services/geminiService';
 
 dotenv.config();
 
@@ -50,6 +50,54 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
+app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { message } = req.body;
+
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({
+        error: 'Message is required.',
+      });
+    }
+
+    const userId = req.user!.userId;
+
+    const user = await getUserProfile(userId) as Record<string, any> | null;
+    const loans = await listLoans(userId);
+    const creditHealth = await getLatestCreditReport(userId);
+
+    const dashboard = {
+      monthlyIncome: user?.monthly_income,
+      monthlyEMI: user?.monthly_emi,
+      existingDebt: user?.existing_debt,
+      monthlyCashflow: user?.monthly_cashflow,
+      activeLoanCount: user?.active_loan_count,
+      cashflowScore: user?.cashflow_score,
+      riskBand: user?.risk_band,
+    };
+
+    const reply = await askGemini(message, {
+      user,
+      loans,
+      dashboard,
+      creditHealth,
+    });
+
+    return res.json({
+      text: reply,
+      reply,
+      sources: ['dashboard', 'loans', 'credit-health'],
+    });
+  } catch (error) {
+    console.error('AI chat error:', error);
+
+    const errorMessage = error instanceof Error ? error.message : 'AI service unavailable';
+    const status = errorMessage.includes('API key is not configured') ? 503 : 502;
+    return res.status(status).json({
+      error: errorMessage,
+    });
+  }
+});
 app.get('/api/me', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await getUserProfile(req.user!.userId);
@@ -268,20 +316,6 @@ app.get('/api/credit-health/latest', authenticate, async (req: AuthRequest, res)
       : res.status(404).json({ error: 'No credit health report found' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Unable to load credit report' });
-  }
-});
-
-app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
-  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
-  if (!message) return res.status(400).json({ error: 'Message is required' });
-
-  try {
-    const answer = await generateFinancialAdvice(req.user!.userId, message);
-    return res.json({ text: answer, answer });
-  } catch (err: any) {
-    const errorMessage = err instanceof Error ? err.message : 'Unable to generate AI response';
-    const status = errorMessage.includes('GEMINI_API_KEY') ? 503 : 502;
-    return res.status(status).json({ error: errorMessage });
   }
 });
 

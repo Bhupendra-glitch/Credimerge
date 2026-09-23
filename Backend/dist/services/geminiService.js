@@ -3,12 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.askGemini = askGemini;
 const generative_ai_1 = require("@google/generative-ai");
 async function askGemini(message, context = {}) {
-    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)?.trim();
     if (!apiKey) {
-        throw new Error('Gemini API key is not configured.');
+        throw new Error('Gemini API key is not configured. Set GEMINI_API_KEY in the backend environment.');
     }
     const model = new generative_ai_1.GoogleGenerativeAI(apiKey).getGenerativeModel({
-        model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+        model: process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash',
     });
     const prompt = `
 You are the CrediMerge AI Assistant.

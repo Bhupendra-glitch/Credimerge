@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import MetricCard from '../components/MetricCard';
 import FloatingAI from '../components/FloatingAI';
-import { api } from '../api/client';
+import { api, buildProfileLoanFallback } from '../api/client';
 import { Loan } from '../types';
 
 export default function EmiPage() {
@@ -23,16 +23,27 @@ export default function EmiPage() {
   const navigate = useNavigate();
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [amortization, setAmortization] = useState<any[]>([]);
-  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loans, setLoans] = useState<Loan[]>(() =>
+    user ? buildProfileLoanFallback(user) : []
+  );
   const [loansLoading, setLoansLoading] = useState(true);
   const [loansError, setLoansError] = useState('');
 
   useEffect(() => {
     api.getLoans()
-      .then((response) => setLoans(response.data))
+      .then((response) => {
+        const loadedLoans = Array.isArray(response.data) ? response.data : [];
+        setLoans(loadedLoans.length ? loadedLoans : buildProfileLoanFallback(user));
+      })
       .catch((error) => {
         console.error('Failed to load loans', error);
-        setLoansError('Unable to load your current GigCred loan data.');
+        const fallbackLoans = buildProfileLoanFallback(user);
+        setLoans(fallbackLoans);
+        setLoansError(
+          fallbackLoans.length
+            ? ''
+            : 'Unable to load your current GigCred loan data.'
+        );
       })
       .finally(() => setLoansLoading(false));
   }, []);
