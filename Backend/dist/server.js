@@ -8,10 +8,10 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const multer_1 = __importDefault(require("multer"));
 const auth_1 = require("./middleware/auth");
-const authService_1 = require("./services/authService");
 const emiService_1 = require("./services/emiService");
 const firestoreService_1 = require("./services/firestoreService");
 const statementService_1 = require("./services/statementService");
+const geminiService_1 = require("./services/geminiService");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT || 5000);
@@ -38,15 +38,44 @@ app.get('/', (_req, res) => {
 app.get('/health', (_req, res) => {
     res.json({ status: 'healthy' });
 });
-app.post('/api/login', async (req, res) => {
-    const { userId, password } = req.body || {};
-    if (!userId || !password)
-        return res.status(400).json({ error: 'User ID and password required' });
+app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
     try {
-        return res.json(await (0, authService_1.login)(String(userId), String(password)));
+        const { message } = req.body;
+        if (!message || typeof message !== 'string') {
+            return res.status(400).json({
+                error: 'Message is required.',
+            });
+        }
+        const userId = req.user.userId;
+        const user = await (0, firestoreService_1.getUserProfile)(userId);
+        const loans = await (0, firestoreService_1.listLoans)(userId);
+        const creditHealth = await (0, firestoreService_1.getLatestCreditReport)(userId);
+        const dashboard = {
+            monthlyIncome: user?.monthly_income,
+            monthlyEMI: user?.monthly_emi,
+            existingDebt: user?.existing_debt,
+            monthlyCashflow: user?.monthly_cashflow,
+            activeLoanCount: user?.active_loan_count,
+            cashflowScore: user?.cashflow_score,
+            riskBand: user?.risk_band,
+        };
+        const reply = await (0, geminiService_1.askGemini)(message, {
+            user,
+            loans,
+            dashboard,
+            creditHealth,
+        });
+        return res.json({
+            text: reply,
+            reply,
+            sources: ['dashboard', 'loans', 'credit-health'],
+        });
     }
-    catch (err) {
-        return res.status(401).json({ error: err.message || 'Authentication failed' });
+    catch (error) {
+        console.error('AI chat error:', error);
+        return res.status(500).json({
+            error: 'AI service failed. Please try again.',
+        });
     }
 });
 app.get('/api/me', auth_1.authenticate, async (req, res) => {
@@ -251,11 +280,19 @@ app.get('/api/credit-health/latest', auth_1.authenticate, async (req, res) => {
         return res.status(500).json({ error: err.message || 'Unable to load credit report' });
     }
 });
-// Reserved integration contracts for Member 4.
-app.post('/api/ai/chat', auth_1.authenticate, async (_req, res) => {
-    return res.status(501).json({
-        error: 'AI service is not configured yet. Integrate the server-side Gemini service here.',
-    });
+app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
+    const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    if (!message)
+        return res.status(400).json({ error: 'message is required' });
+    try {
+        const text = await (0, geminiService_1.askGemini)(message, req.body?.context || {});
+        return res.json({ text });
+    }
+    catch (err) {
+        const messageText = err instanceof Error ? err.message : 'AI service unavailable';
+        const status = messageText.includes('API key is not configured') ? 503 : 502;
+        return res.status(status).json({ error: messageText });
+    }
 });
 app.get('/api/reports/:id/download', auth_1.authenticate, async (_req, res) => {
     return res.status(501).json({

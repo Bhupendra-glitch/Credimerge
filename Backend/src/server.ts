@@ -16,6 +16,7 @@ import {
   getLatestCreditReport,
 } from './services/firestoreService';
 import { buildStatementProfile } from './services/statementService';
+import { askGemini } from './services/geminiService';
 
 dotenv.config();
 
@@ -49,14 +50,50 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
-app.post('/api/login', async (req, res) => {
-  const { userId, password } = req.body || {};
-  if (!userId || !password) return res.status(400).json({ error: 'User ID and password required' });
-
+app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
   try {
-    return res.json(await login(String(userId), String(password)));
-  } catch (err: any) {
-    return res.status(401).json({ error: err.message || 'Authentication failed' });
+    const { message } = req.body;
+
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({
+        error: 'Message is required.',
+      });
+    }
+
+    const userId = req.user!.userId;
+
+    const user = await getUserProfile(userId) as Record<string, any> | null;
+    const loans = await listLoans(userId);
+    const creditHealth = await getLatestCreditReport(userId);
+
+    const dashboard = {
+      monthlyIncome: user?.monthly_income,
+      monthlyEMI: user?.monthly_emi,
+      existingDebt: user?.existing_debt,
+      monthlyCashflow: user?.monthly_cashflow,
+      activeLoanCount: user?.active_loan_count,
+      cashflowScore: user?.cashflow_score,
+      riskBand: user?.risk_band,
+    };
+
+    const reply = await askGemini(message, {
+      user,
+      loans,
+      dashboard,
+      creditHealth,
+    });
+
+    return res.json({
+      text: reply,
+      reply,
+      sources: ['dashboard', 'loans', 'credit-health'],
+    });
+  } catch (error) {
+    console.error('AI chat error:', error);
+
+    return res.status(500).json({
+      error: 'AI service failed. Please try again.',
+    });
   }
 });
 
@@ -281,11 +318,18 @@ app.get('/api/credit-health/latest', authenticate, async (req: AuthRequest, res)
   }
 });
 
-// Reserved integration contracts for Member 4.
-app.post('/api/ai/chat', authenticate, async (_req, res) => {
-  return res.status(501).json({
-    error: 'AI service is not configured yet. Integrate the server-side Gemini service here.',
-  });
+app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!message) return res.status(400).json({ error: 'message is required' });
+
+  try {
+    const text = await askGemini(message, req.body?.context || {});
+    return res.json({ text });
+  } catch (err: any) {
+    const messageText = err instanceof Error ? err.message : 'AI service unavailable';
+    const status = messageText.includes('API key is not configured') ? 503 : 502;
+    return res.status(status).json({ error: messageText });
+  }
 });
 
 app.get('/api/reports/:id/download', authenticate, async (_req, res) => {

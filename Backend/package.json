@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.3",
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "csv-parser": "^3.0.0",

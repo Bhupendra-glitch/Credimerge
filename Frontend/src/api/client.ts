@@ -4,7 +4,9 @@ const configuredApiUrl = String(import.meta.env.VITE_API_URL || '').trim();
 const browserApiUrl = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:5000`
   : 'http://localhost:5000';
-const API_URL = configuredApiUrl || (import.meta.env.PROD ? '' : browserApiUrl);
+const productionApiUrl = 'https://credimerge-api.onrender.com';
+const API_URL = (configuredApiUrl || (import.meta.env.PROD ? productionApiUrl : browserApiUrl))
+  .replace(/\/$/, '');
 
 const client = axios.create({
   baseURL: API_URL,
@@ -51,6 +53,9 @@ export const api = {
 
   aggregate: (loans: any[]) =>
     client.post('/api/emi/aggregate', { loans }),
+
+  chatWithAI: (message: string, context?: unknown) =>
+    client.post('/api/ai/chat', { message, context }),
 };
 
 export default client;
