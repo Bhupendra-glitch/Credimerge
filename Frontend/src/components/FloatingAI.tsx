@@ -27,10 +27,13 @@ export default function FloatingAI() {
         throw new Error('Please log in first.');
       }
 
-      const response = await api.chatWithAI(q, { user: user ?? null });
+      const response = await api.chatWithAI(q);
       setMessages((m) => [...m, { role: 'ai', text: response.data.answer || response.data.reply || response.data.text || 'I could not generate a response.' }]);
     } catch (error: any) {
-      const message = buildLocalFinancialReply(user, q);
+      const message =
+        error?.response?.data?.error ||
+        error?.message ||
+        'I could not generate a response right now.';
 
       setMessages((m) => [
         ...m,
