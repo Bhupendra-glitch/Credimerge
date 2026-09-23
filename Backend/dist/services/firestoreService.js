@@ -168,9 +168,24 @@ async function saveCreditReport(userId, report) {
     return { id: ref.id, ...payload };
 }
 async function getLatestCreditReport(userId) {
-    const snap = await (0, firebaseAdmin_1.getDb)().collection('users').doc(userId).collection('creditReports').orderBy('createdAt', 'desc').limit(1).get();
-    if (snap.empty)
+    try {
+        const snap = await (0, firebaseAdmin_1.getDb)()
+            .collection('users')
+            .doc(userId)
+            .collection('creditReports')
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .get();
+        if (snap.empty)
+            return null;
+        const doc = snap.docs[0];
+        return {
+            id: doc.id,
+            ...doc.data(),
+        };
+    }
+    catch (error) {
+        console.warn('Firestore unavailable; credit health unavailable locally:', error instanceof Error ? error.message : error);
         return null;
-    const doc = snap.docs[0];
-    return { id: doc.id, ...doc.data() };
+    }
 }

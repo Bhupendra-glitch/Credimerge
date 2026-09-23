@@ -65,9 +65,15 @@ app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
             });
         }
         const userId = req.user.userId;
-        const user = await (0, firestoreService_1.getUserProfile)(userId);
+        const user = (await (0, firestoreService_1.getUserProfile)(userId));
         const loans = await (0, firestoreService_1.listLoans)(userId);
-        const creditHealth = await (0, firestoreService_1.getLatestCreditReport)(userId);
+        let creditHealth = null;
+        try {
+            creditHealth = await (0, firestoreService_1.getLatestCreditReport)(userId);
+        }
+        catch (error) {
+            console.warn('Credit health unavailable:', error);
+        }
         const dashboard = {
             monthlyIncome: user?.monthly_income,
             monthlyEMI: user?.monthly_emi,
@@ -77,24 +83,56 @@ app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
             cashflowScore: user?.cashflow_score,
             riskBand: user?.risk_band,
         };
-        const reply = await (0, geminiService_1.askGemini)(message, {
-            user,
-            loans,
-            dashboard,
-            creditHealth,
-        });
-        return res.json({
-            text: reply,
-            reply,
-            sources: ['dashboard', 'loans', 'credit-health'],
-        });
+        try {
+            const reply = await (0, geminiService_1.askGemini)(message, {
+                user,
+                loans,
+                dashboard,
+                creditHealth,
+            });
+            return res.json({
+                reply,
+                sources: ['gemini', 'dashboard', 'loans', 'credit-health'],
+            });
+        }
+        catch (geminiError) {
+            console.warn('Gemini unavailable; using local CrediMerge fallback:', geminiError instanceof Error ? geminiError.message : geminiError);
+            const q = message.toLowerCase();
+            let reply = '';
+            if (q.includes('emi')) {
+                reply = `Your total monthly EMI is ₹${Number(user?.monthly_emi || 0).toLocaleString('en-IN')}. You currently have ${user?.active_loan_count || loans.length} active loans.`;
+            }
+            else if (q.includes('loan') || q.includes('debt')) {
+                reply = `You currently have ${user?.active_loan_count || loans.length} active loans with total outstanding debt of ₹${Number(user?.existing_debt || 0).toLocaleString('en-IN')}.`;
+            }
+            else if (q.includes('income')) {
+                reply = `Your monthly income is ₹${Number(user?.monthly_income || 0).toLocaleString('en-IN')}.`;
+            }
+            else if (q.includes('credit') || q.includes('score') || q.includes('health')) {
+                if (user?.cashflow_score != null) {
+                    reply = `Your CrediMerge credit health score is ${user.cashflow_score}/100, with a risk band of ${user.risk_band || 'unavailable'}. This is a CrediMerge cash-flow-based estimate, not an official bureau score.`;
+                }
+                else {
+                    reply = 'Your credit health information is currently unavailable.';
+                }
+            }
+            else if (q.includes('consolidat')) {
+                reply = `You have ₹${Number(user?.existing_debt || 0).toLocaleString('en-IN')} in outstanding debt. Consolidation may reduce monthly EMI, but it can also increase total interest if the new tenure is longer. Compare the total repayment before deciding.`;
+            }
+            else {
+                reply =
+                    'The live AI service is currently unavailable, but I can still explain your EMI, loans, debt, income, and CrediMerge credit-health information.';
+            }
+            return res.json({
+                reply,
+                sources: ['local-fallback', 'dashboard', 'loans'],
+            });
+        }
     }
     catch (error) {
         console.error('AI chat error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'AI service unavailable';
-        const status = errorMessage.includes('API key is not configured') ? 503 : 502;
-        return res.status(status).json({
-            error: errorMessage,
+        return res.status(500).json({
+            error: 'Unable to process your question right now.',
         });
     }
 });
