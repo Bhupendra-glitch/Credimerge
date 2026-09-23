@@ -12,4 +12,6 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_ORIGIN
-        value: https://credimerge-xifa.vercel.app
+        value: https://credimerge-xifa.vercel.app,https://credimerge.netlify.app
+      - key: ALLOW_DEMO_LOGIN
+        value: "true"

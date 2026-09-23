@@ -16,7 +16,7 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const firebaseAdmin_1 = require("../config/firebaseAdmin");
 function getDemoUser(userId) {
-    if (process.env.NODE_ENV === 'production')
+    if (process.env.ALLOW_DEMO_LOGIN === 'false')
         return null;
     const csvPath = [
         process.env.SEED_CSV ? path_1.default.resolve(process.env.SEED_CSV) : '',

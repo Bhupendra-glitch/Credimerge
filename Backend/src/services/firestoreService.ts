@@ -17,7 +17,7 @@ export interface LoanRecord {
 }
 
 function getDemoUser(userId: string): Record<string, any> | null {
-  if (process.env.NODE_ENV === 'production') return null;
+  if (process.env.ALLOW_DEMO_LOGIN === 'false') return null;
 
   const csvPath = [
     process.env.SEED_CSV ? path.resolve(process.env.SEED_CSV) : '',
