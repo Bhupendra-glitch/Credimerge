@@ -23,7 +23,10 @@ export default function Login() {
       login(res.data.user, res.data.token);
       navigate('/home');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Try again.');
+      const message = err.response?.data?.error;
+      setError(message || (err.response
+        ? 'Login failed. Check your User ID and password.'
+        : 'Login service unavailable. Set VITE_API_URL to the deployed backend URL.'));
     } finally {
       setLoading(false);
     }
