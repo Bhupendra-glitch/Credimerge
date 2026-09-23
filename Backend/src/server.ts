@@ -50,6 +50,25 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
+app.post('/api/login', async (req, res) => {
+  try {
+    const { userId, password } = req.body || {};
+
+    if (!userId || !password) {
+      return res.status(400).json({ error: 'User ID and password are required.' });
+    }
+
+    const result = await login(String(userId).trim().toUpperCase(), String(password));
+    return res.json({
+      token: result.token,
+      user: result.user,
+    });
+  } catch (error: any) {
+    const message = error?.message || 'Login failed';
+    return res.status(401).json({ error: message });
+  }
+});
+
 app.post('/api/ai/chat', authenticate, async (req: AuthRequest, res) => {
   try {
     const { message } = req.body;

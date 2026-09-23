@@ -8,6 +8,7 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const multer_1 = __importDefault(require("multer"));
 const auth_1 = require("./middleware/auth");
+const authService_1 = require("./services/authService");
 const emiService_1 = require("./services/emiService");
 const firestoreService_1 = require("./services/firestoreService");
 const statementService_1 = require("./services/statementService");
@@ -37,6 +38,23 @@ app.get('/', (_req, res) => {
 });
 app.get('/health', (_req, res) => {
     res.json({ status: 'healthy' });
+});
+app.post('/api/login', async (req, res) => {
+    try {
+        const { userId, password } = req.body || {};
+        if (!userId || !password) {
+            return res.status(400).json({ error: 'User ID and password are required.' });
+        }
+        const result = await (0, authService_1.login)(String(userId).trim().toUpperCase(), String(password));
+        return res.json({
+            token: result.token,
+            user: result.user,
+        });
+    }
+    catch (error) {
+        const message = error?.message || 'Login failed';
+        return res.status(401).json({ error: message });
+    }
 });
 app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
     try {
