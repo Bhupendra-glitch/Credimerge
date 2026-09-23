@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import MetricCard from '../components/MetricCard';
 import FloatingAI from '../components/FloatingAI';
-import { api } from '../api/client';
+import { api, API_URL } from '../api/client';
 
 export default function CreditHealth() {
   const { user } = useAuth();
@@ -54,7 +54,7 @@ export default function CreditHealth() {
       } catch (error: any) {
         setAnalysisError(
           error.response?.data?.error
-            || (error.request ? 'Unable to reach the credit-health service. Check the deployed API URL.' : 'Unable to analyze this statement'),
+            || (error.request ? `Unable to reach the credit-health service at ${API_URL}. Check the deployed API URL.` : 'Unable to analyze this statement'),
         );
         return;
       }
