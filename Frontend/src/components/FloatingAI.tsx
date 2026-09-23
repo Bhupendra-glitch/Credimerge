@@ -28,8 +28,10 @@ export default function FloatingAI() {
       }
 
       await refreshUser();
-      const response = await api.chatWithAi(q);
-      setMessages((m) => [...m, { role: 'ai', text: response.data.answer || 'I could not generate a response.' }]);
+      const response = await api.chatWithAI(q, {
+        user: user ?? null,
+      });
+      setMessages((m) => [...m, { role: 'ai', text: response.data.answer || response.data.text || 'I could not generate a response.' }]);
     } catch (error: any) {
       const message = error?.response?.data?.error || error?.message || 'I could not generate a response right now.';
       setMessages((m) => [...m, { role: 'ai', text: message }]);

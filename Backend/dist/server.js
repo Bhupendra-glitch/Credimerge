@@ -11,11 +11,7 @@ const auth_1 = require("./middleware/auth");
 const emiService_1 = require("./services/emiService");
 const firestoreService_1 = require("./services/firestoreService");
 const statementService_1 = require("./services/statementService");
-<<<<<<< HEAD
 const geminiService_1 = require("./services/geminiService");
-=======
-const aiService_1 = require("./services/aiService");
->>>>>>> de926d5364dbea3758568bd4733a8d52bbf87ec1
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = Number(process.env.PORT || 5000);
@@ -284,36 +280,18 @@ app.get('/api/credit-health/latest', auth_1.authenticate, async (req, res) => {
         return res.status(500).json({ error: err.message || 'Unable to load credit report' });
     }
 });
-<<<<<<< HEAD
 app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
     const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
     if (!message)
         return res.status(400).json({ error: 'message is required' });
     try {
         const text = await (0, geminiService_1.askGemini)(message, req.body?.context || {});
-        return res.json({ text });
+        return res.json({ text, answer: text });
     }
     catch (err) {
         const messageText = err instanceof Error ? err.message : 'AI service unavailable';
         const status = messageText.includes('API key is not configured') ? 503 : 502;
         return res.status(status).json({ error: messageText });
-=======
-// Reserved integration contracts for Member 4.
-app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
-    const { message } = req.body || {};
-    const prompt = typeof message === 'string' ? message.trim() : '';
-    if (!prompt) {
-        return res.status(400).json({ error: 'Message is required' });
-    }
-    try {
-        const answer = await (0, aiService_1.generateFinancialAdvice)(req.user.userId, prompt);
-        return res.json({ answer });
-    }
-    catch (err) {
-        return res.status(500).json({
-            error: err.message || 'Unable to generate AI response',
-        });
->>>>>>> de926d5364dbea3758568bd4733a8d52bbf87ec1
     }
 });
 app.get('/api/reports/:id/download', auth_1.authenticate, async (_req, res) => {
