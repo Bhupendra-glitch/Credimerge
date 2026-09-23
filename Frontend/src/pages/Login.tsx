@@ -48,18 +48,20 @@ export default function Login() {
     setError('');
     setLoading(true);
 
+    const normalizedUserId = userId.trim().toUpperCase();
+    const demo = demoUsers[normalizedUserId];
+    if (demo && demo.password === password) {
+      login(demo.user, `demo-${demo.user.user_id.toLowerCase()}`);
+      navigate('/home');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await api.login(userId.trim().toUpperCase(), password);
+      const res = await api.login(normalizedUserId, password);
       login(res.data.user, res.data.token);
       navigate('/home');
     } catch (err: any) {
-      const demo = demoUsers[userId.trim().toUpperCase()];
-      if (demo && demo.password === password) {
-        login(demo.user, `demo-${demo.user.user_id.toLowerCase()}`);
-        navigate('/home');
-        return;
-      }
-
       const message = err.response?.data?.error;
       setError(message || (err.response
         ? 'Login failed. Check your User ID and password.'
