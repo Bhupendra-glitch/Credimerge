@@ -1,72 +1,40 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
 
 export default function FloatingAI() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
   const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([
     {
       role: 'ai',
-      text: 'Hi! I can help you understand your EMI and credit health. Ask me anything.',
+      text: 'Hi! I can help you understand your EMI, loans, credit health, and finances. Ask me anything.',
     },
   ]);
 
-  const answer = (q: string): string => {
-    if (!user) return 'Please log in first.';
-    const lower = q.toLowerCase().replace(/[?!.]/g, '');
-
-    if (
-      lower.includes('emi') &&
-      (lower.includes('total') ||
-        lower.includes('monthly') ||
-        lower.includes('amount') ||
-        lower.includes('kitna') ||
-        lower.includes('how much'))
-    ) {
-      return `Your total monthly EMI is ₹${user.monthly_emi.toLocaleString('en-IN')}.`;
-    }
-    if (lower.includes('emi')) {
-      return `Your total monthly EMI is ₹${user.monthly_emi.toLocaleString('en-IN')}. You have ${user.active_loan_count} active loans.`;
-    }
-    if (lower.includes('score') || lower.includes('health')) {
-      return `Your credit health score is ${user.cashflow_score}/100 — ${user.risk_band}.`;
-    }
-    if (lower.includes('consolidat')) {
-      return `You have ${user.active_loan_count} active loans totaling ₹${user.existing_debt.toLocaleString('en-IN')}. Consolidation can reduce your EMI but may extend tenure, increasing total interest. Compare on the EMI page.`;
-    }
-    if (lower.includes('highest') && lower.includes('interest')) {
-      return `Your Credit Card at 36% is likely your most expensive debt. Prioritize paying it off first.`;
-    }
-    if (lower.includes('safe')) {
-      const safe = Math.min(
-        user.monthly_income * 0.4 - user.monthly_emi,
-        user.monthly_cashflow * 0.5
-      );
-      return `Your safe EMI capacity is ₹${safe.toFixed(0)}/month. This keeps your FOIR under 40%.`;
-    }
-    if (lower.includes('loan') || lower.includes('outstanding')) {
-      return `You have ${user.active_loan_count} loans with ₹${user.existing_debt.toLocaleString('en-IN')} outstanding. Check the EMI page for details.`;
-    }
-    if (lower.includes('income')) {
-      return `Your monthly income is ₹${user.monthly_income.toLocaleString('en-IN')}.`;
-    }
-    if (lower.includes('surplus') || lower.includes('savings')) {
-      return `Your monthly surplus is ₹${user.monthly_cashflow.toLocaleString('en-IN')}.`;
-    }
-    return 'I can answer questions about your EMI, loans, credit health, or financial snapshot. Try asking "What is my total EMI?" or "Why is my score this?"';
-  };
-
-  const send = () => {
+  const send = async () => {
     if (!input.trim()) return;
     const q = input.trim();
-    setMessages((m) => [
-      ...m,
-      { role: 'user', text: q },
-      { role: 'ai', text: answer(q) },
-    ]);
+    setMessages((m) => [...m, { role: 'user', text: q }]);
     setInput('');
+    setLoading(true);
+
+    try {
+      if (!user) {
+        throw new Error('Please log in first.');
+      }
+
+      const response = await api.chatWithAi(q);
+      setMessages((m) => [...m, { role: 'ai', text: response.data.answer || 'I could not generate a response.' }]);
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.message || 'I could not generate a response right now.';
+      setMessages((m) => [...m, { role: 'ai', text: message }]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -104,21 +72,23 @@ export default function FloatingAI() {
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              send();
+              if (!loading) send();
             }}
             className="p-3 border-t border-slate-700 flex gap-2"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask something..."
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500"
+              placeholder={loading ? 'Thinking...' : 'Ask something...'}
+              disabled={loading}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-green-500 disabled:opacity-60"
             />
             <button
               type="submit"
-              className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:opacity-90"
+              disabled={loading}
+              className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold hover:opacity-90 disabled:opacity-60"
             >
-              Send
+              {loading ? '...' : 'Send'}
             </button>
           </form>
         </div>
