@@ -16,16 +16,31 @@ export default function Home() {
   );
 
   useEffect(() => {
+    if (!user) {
+      setLoans([]);
+      return;
+    }
+
+    let isCurrentRequest = true;
+    const fallbackLoans = buildProfileLoanFallback(user);
+    setLoans(fallbackLoans);
+
     api.getLoans()
       .then((response) => {
+        if (!isCurrentRequest) return;
         const loadedLoans = Array.isArray(response.data) ? response.data : [];
-        setLoans(loadedLoans.length ? loadedLoans : buildProfileLoanFallback(user));
+        setLoans(loadedLoans.length ? loadedLoans : fallbackLoans);
       })
       .catch((error) => {
+        if (!isCurrentRequest) return;
         console.error('Failed to load loans for DebtLens simulator', error);
-        setLoans(buildProfileLoanFallback(user));
+        setLoans(fallbackLoans);
       });
-  }, []);
+
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [user]);
 
   if (!user) return null;
 
