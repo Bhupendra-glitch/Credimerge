@@ -1,5 +1,10 @@
 export interface User {
   user_id: string;
+  userId?: string;
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  createdAt?: unknown;
   age: number;
   worker_type: string;
   monthly_income: number;

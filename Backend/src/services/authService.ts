@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
-import { getUserAuthRecord } from './firestoreService';
+import { getUserAuthRecord, updateUserPassword } from './firestoreService';
 
 dotenv.config();
 
@@ -35,6 +35,37 @@ export async function login(userId: string, password: string): Promise<LoginResu
   delete safe.passwordHash;
 
   return { token, user: safe };
+}
+
+export function validatePasswordChange(newPassword: string, confirmPassword: string) {
+  if (newPassword.length < 12) throw new Error('New password must be at least 12 characters.');
+  if (Buffer.byteLength(newPassword, 'utf8') > 72) {
+    throw new Error('New password must be no longer than 72 UTF-8 bytes.');
+  }
+  if (newPassword !== confirmPassword) throw new Error('New passwords do not match.');
+}
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string,
+) {
+  validatePasswordChange(newPassword, confirmPassword);
+  if (!currentPassword) throw new Error('Current password is required.');
+  if (currentPassword === newPassword) throw new Error('Choose a password different from your current password.');
+
+  const user = await getUserAuthRecord(userId);
+  if (!user) throw new Error('User account was not found.');
+
+  const currentPasswordMatches = user.passwordHash
+    ? await bcrypt.compare(currentPassword, user.passwordHash)
+    : user.password === currentPassword;
+  if (!currentPasswordMatches) throw new Error('Current password is incorrect.');
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const updated = await updateUserPassword(userId, passwordHash);
+  if (!updated) throw new Error('Password changes are unavailable for demo accounts.');
 }
 
 export function verifyToken(token: string) {

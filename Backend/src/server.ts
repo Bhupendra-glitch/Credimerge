@@ -3,10 +3,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import { authenticate, AuthRequest } from './middleware/auth';
-import { login } from './services/authService';
+import { changePassword, login } from './services/authService';
 import { calculateEmi, totalInterest, buildAmortizationTable, aggregateLoans } from './services/emiService';
 import {
   getUserProfile,
+  updateUserProfile,
   listLoans,
   getLoan,
   createLoan,
@@ -175,6 +176,47 @@ app.get('/api/me', authenticate, async (req: AuthRequest, res) => {
     return res.json(user);
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Unable to load user' });
+  }
+});
+
+app.patch('/api/me/profile', authenticate, async (req: AuthRequest, res) => {
+  const fullName = typeof req.body?.fullName === 'string'
+    ? req.body.fullName.trim().replace(/\s+/g, ' ')
+    : '';
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+  const phoneDigits = phone.replace(/\D/g, '');
+
+  if (!fullName || fullName.length > 100 || /[\u0000-\u001f\u007f]/.test(fullName)) {
+    return res.status(400).json({ error: 'Enter a valid name up to 100 characters.' });
+  }
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Enter a valid email address.' });
+  }
+  if (phone && (!/^\+?[0-9().\s-]+$/.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15)) {
+    return res.status(400).json({ error: 'Enter a valid phone number with 7-15 digits.' });
+  }
+
+  try {
+    const user = await updateUserProfile(req.user!.userId, { fullName, email, phone });
+    if (!user) return res.status(404).json({ error: 'Profile updates are unavailable for demo accounts.' });
+    return res.json(user);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'Unable to save profile.' });
+  }
+});
+
+app.post('/api/me/password', authenticate, async (req: AuthRequest, res) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body || {};
+  if ([currentPassword, newPassword, confirmPassword].some((value) => typeof value !== 'string')) {
+    return res.status(400).json({ error: 'Complete all password fields.' });
+  }
+
+  try {
+    await changePassword(req.user!.userId, currentPassword, newPassword, confirmPassword);
+    return res.json({ message: 'Password updated successfully.' });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message || 'Unable to change password.' });
   }
 });
 

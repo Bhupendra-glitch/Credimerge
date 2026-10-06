@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (user: User, token: string) => void;
+  updateUser: (user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
   loading: boolean;
@@ -95,6 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('credimerge_user');
   };
 
+  const updateUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem('credimerge_user', JSON.stringify(userData));
+  };
+
   const refreshUser = async () => {
     if (!token || token.startsWith('demo-')) {
       return;
@@ -117,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, loading }}>
+    <AuthContext.Provider value={{ user, token, login, updateUser, logout, refreshUser, loading }}>
       {children}
     </AuthContext.Provider>
   );

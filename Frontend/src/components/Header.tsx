@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ProfileMenu from './ProfileMenu';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -19,13 +20,14 @@ export default function Header() {
         >
           💸 CrediMerge
         </button>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <div className="text-right hidden md:block">
             <div className="text-slate-400 text-xs">Welcome</div>
             <div className="text-slate-100 font-bold">
-              {user?.user_id} ({user?.worker_type})
+              {user?.fullName || user?.user_id || user?.userId} {user?.worker_type && `(${user.worker_type})`}
             </div>
           </div>
+          <ProfileMenu onLogout={handleLogout} />
           <button
             onClick={handleLogout}
             className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg text-sm border border-slate-700 transition"

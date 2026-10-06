@@ -84,6 +84,12 @@ export const api = {
 
   getMe: () => client.get('/api/me'),
 
+  updateProfile: (profile: { fullName: string; email: string; phone: string }) =>
+    client.patch('/api/me/profile', profile),
+
+  changePassword: (passwords: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
+    client.post('/api/me/password', passwords),
+
   getLoans: () => client.get('/api/loans'),
 
   createLoan: (loan: Record<string, unknown>) => client.post('/api/loans', loan),

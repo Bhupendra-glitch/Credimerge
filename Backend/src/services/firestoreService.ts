@@ -124,6 +124,31 @@ export async function getUserAuthRecord(userId: string) {
   return data ? { userId: userId.toUpperCase(), ...data } : null;
 }
 
+export async function updateUserProfile(
+  userId: string,
+  profile: { fullName: string; email: string; phone: string },
+) {
+  const ref = getDb().collection('users').doc(userId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  const updatedAt = Timestamp.now();
+  await ref.update({ ...profile, updatedAt });
+  const updatedProfile = { userId: snap.id, ...(snap.data() || {}), ...profile, updatedAt } as Record<string, any>;
+  delete updatedProfile.passwordHash;
+  delete updatedProfile.password;
+  return updatedProfile;
+}
+
+export async function updateUserPassword(userId: string, passwordHash: string) {
+  const ref = getDb().collection('users').doc(userId);
+  const snap = await ref.get();
+  if (!snap.exists) return false;
+
+  await ref.update({ passwordHash, password: null, updatedAt: Timestamp.now() });
+  return true;
+}
+
 export async function listLoans(userId: string): Promise<LoanRecord[]> {
   try {
     const snap = await getDb().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();
