@@ -72,8 +72,74 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-md">
+    <div className="auth-scene relative isolate min-h-screen flex items-center justify-center px-4 py-10">
+      <svg
+        className="auth-backdrop"
+        viewBox="0 0 1440 900"
+        preserveAspectRatio="xMidYMid slice"
+        fill="none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <defs>
+          <linearGradient id="auth-line" x1="120" y1="120" x2="1320" y2="780" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#34d399" />
+            <stop offset="1" stopColor="#60a5fa" />
+          </linearGradient>
+        </defs>
+
+        <g className="auth-art-float" stroke="url(#auth-line)" strokeWidth="1.5">
+          <g opacity=".2" transform="translate(105 150) rotate(-12)">
+            <rect width="176" height="112" rx="12" />
+            <path d="M1 31h174M18 81h45m-45 13h75" />
+            <circle cx="148" cy="84" r="10" />
+          </g>
+          <g opacity=".17" transform="translate(1150 635) rotate(12)">
+            <rect width="178" height="112" rx="12" />
+            <path d="M1 31h176M18 81h45m-45 13h75" />
+            <circle cx="150" cy="84" r="10" />
+          </g>
+          <g opacity=".2" transform="translate(1130 186)">
+            <circle cx="72" cy="72" r="57" strokeDasharray="5 8" />
+            <circle cx="72" cy="72" r="42" />
+            <path d="M72 72 99 48M72 72V34" strokeWidth="3" strokeLinecap="round" />
+            <path d="M54 91a28 28 0 0 0 39-2" />
+          </g>
+          <g opacity=".17" transform="translate(90 620)">
+            <path d="M0 142h198M12 142V87h26v55m13 0V52h26v90m13 0V76h26v66m13 0V20h26v122m13 0V60h26v82" />
+            <path className="auth-chart-line" d="m8 72 48-27 46 19 44-48 44 22" strokeWidth="2" />
+          </g>
+          <g opacity=".19" transform="translate(1190 410)">
+            <path d="M20 28 70 0l50 28v5H20zm9 8v48m27-48v48m28-48v48m27-48v48M17 88h106v9H17z" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M0 116h144m-120 0v17m96-17v17M9 140h126" />
+          </g>
+          <g opacity=".16" transform="translate(290 760)">
+            <path d="M22 0 44 8v19c0 18-11 31-22 38C11 58 0 45 0 27V8z" strokeLinejoin="round" />
+            <path d="m12 29 7 7 14-16" strokeLinecap="round" strokeLinejoin="round" />
+          </g>
+          <g opacity=".19" transform="translate(1040 770)">
+            <circle cx="0" cy="0" r="7" /><circle cx="74" cy="-28" r="7" />
+            <circle cx="119" cy="33" r="7" /><circle cx="53" cy="62" r="7" />
+            <path d="m7-3 60-22m11 3 36 49m-3 9-51 22m-7-7-48-47" />
+          </g>
+          <g className="auth-network" opacity=".13">
+            <path d="m350 180 106 74 95-48 97 98 106-66 104 85m-502 9 98 63 100-91 94 93 104-44 103 59" />
+            <circle cx="350" cy="180" r="4" fill="#34d399" /><circle cx="456" cy="254" r="4" fill="#34d399" />
+            <circle cx="551" cy="206" r="4" fill="#60a5fa" /><circle cx="648" cy="304" r="4" fill="#34d399" />
+            <circle cx="754" cy="238" r="4" fill="#60a5fa" /><circle cx="858" cy="323" r="4" fill="#34d399" />
+            <circle cx="360" cy="395" r="4" fill="#60a5fa" /><circle cx="458" cy="458" r="4" fill="#34d399" />
+            <circle cx="558" cy="367" r="4" fill="#60a5fa" /><circle cx="652" cy="460" r="4" fill="#34d399" />
+            <circle cx="756" cy="416" r="4" fill="#60a5fa" /><circle cx="859" cy="475" r="4" fill="#34d399" />
+          </g>
+        </g>
+        <g className="auth-data" fill="#94a3b8" fontFamily="monospace" fontSize="11" opacity=".17">
+          <text x="72" y="352">+12.8%  08:42  INR</text>
+          <text x="1090" y="116">₹ 24,850.00</text>
+          <text x="1030" y="555">TXN 00482  CREDIT</text>
+          <text x="360" y="720">01  10  11  01  00  10</text>
+        </g>
+      </svg>
+      <div className="relative z-10 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-10">
           <h1 className="text-6xl font-extrabold bg-gradient-to-r from-green-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
