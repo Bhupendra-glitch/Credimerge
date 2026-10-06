@@ -16,11 +16,95 @@ body {
   box-sizing: border-box;
 }
 
-.auth-scene {
+.app-content {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+}
+
+.fintech-background {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  color: #22d3ee;
+  pointer-events: none;
+}
+
+.fintech-glow,
+.fintech-grid,
+.fintech-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fintech-glow {
   background:
-    radial-gradient(circle at 14% 16%, rgb(16 185 129 / 12%), transparent 30%),
-    radial-gradient(circle at 86% 78%, rgb(59 130 246 / 15%), transparent 34%),
-    radial-gradient(circle at 50% 0%, #111b2b 0%, #070b14 58%, #03050b 100%);
+    radial-gradient(ellipse at 5% 8%, rgb(8 145 178 / 9%), transparent 27%),
+    radial-gradient(ellipse at 96% 9%, rgb(14 116 144 / 8%), transparent 25%),
+    radial-gradient(ellipse at 94% 94%, rgb(6 182 212 / 7%), transparent 29%);
+}
+
+.fintech-grid {
+  background-image:
+    linear-gradient(to right, rgb(34 211 238 / 10%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(34 211 238 / 10%) 1px, transparent 1px);
+  background-size: 72px 72px;
+  opacity: 0.38;
+}
+
+.fintech-art {
+  color: #38bdf8;
+}
+
+.fintech-wave {
+  opacity: 0.12;
+  stroke-dasharray: 5 13;
+  animation: fintech-flow 36s linear infinite;
+}
+
+.fintech-network {
+  opacity: 0.16;
+  animation: fintech-drift 24s ease-in-out infinite alternate;
+}
+
+.fintech-node {
+  fill: #67e8f9;
+  opacity: 0.65;
+  animation: fintech-pulse 7s ease-in-out infinite alternate;
+}
+
+.fintech-node:nth-of-type(2n) {
+  animation-delay: -3s;
+}
+
+.fintech-watermarks,
+.fintech-bars {
+  opacity: 0.12;
+}
+
+.fintech-watermarks text {
+  fill: currentColor;
+}
+
+@keyframes fintech-flow {
+  to { stroke-dashoffset: -144; }
+}
+
+@keyframes fintech-drift {
+  from { transform: translateY(-3px); }
+  to { transform: translateY(4px); }
+}
+
+@keyframes fintech-pulse {
+  from { opacity: 0.3; }
+  to { opacity: 0.8; }
+}
+
+.auth-scene {
+  background: transparent;
   overflow: hidden;
 }
 
@@ -81,6 +165,12 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .fintech-wave,
+  .fintech-network,
+  .fintech-node {
+    animation: none;
+  }
+
   .auth-art-float,
   .auth-network,
   .auth-chart-line,
