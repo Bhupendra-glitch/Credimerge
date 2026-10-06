@@ -90,6 +90,12 @@ export const api = {
   changePassword: (passwords: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
     client.post('/api/me/password', passwords),
 
+  requestPasswordReset: (email: string) =>
+    client.post('/api/auth/forgot-password', { email }),
+
+  resetPassword: (token: string, newPassword: string, confirmPassword: string) =>
+    client.post('/api/auth/reset-password', { token, newPassword, confirmPassword }),
+
   getLoans: () => client.get('/api/loans'),
 
   createLoan: (loan: Record<string, unknown>) => client.post('/api/loans', loan),

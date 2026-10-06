@@ -7,6 +7,8 @@ exports.getUserProfile = getUserProfile;
 exports.getUserAuthRecord = getUserAuthRecord;
 exports.updateUserProfile = updateUserProfile;
 exports.updateUserPassword = updateUserPassword;
+exports.createPasswordResetToken = createPasswordResetToken;
+exports.consumePasswordResetToken = consumePasswordResetToken;
 exports.listLoans = listLoans;
 exports.getLoan = getLoan;
 exports.createLoan = createLoan;
@@ -146,6 +148,43 @@ async function updateUserPassword(userId, passwordHash) {
         return false;
     await ref.update({ passwordHash, password: null, updatedAt: firebaseAdmin_1.Timestamp.now() });
     return true;
+}
+async function createPasswordResetToken(userId, token, expiresAt) {
+    const tokenRef = (0, firebaseAdmin_1.getDb)().collection('passwordResetTokens').doc(token);
+    await tokenRef.create({
+        userId,
+        expiresAt: firebaseAdmin_1.Timestamp.fromDate(expiresAt),
+        createdAt: firebaseAdmin_1.Timestamp.now(),
+    });
+}
+async function consumePasswordResetToken(token, passwordHash) {
+    const db = (0, firebaseAdmin_1.getDb)();
+    const tokenRef = db.collection('passwordResetTokens').doc(token);
+    return db.runTransaction(async (transaction) => {
+        const tokenSnapshot = await transaction.get(tokenRef);
+        if (!tokenSnapshot.exists)
+            return false;
+        const reset = tokenSnapshot.data();
+        const expiryMillis = reset?.expiresAt?.toMillis?.();
+        const userId = typeof reset?.userId === 'string' ? reset.userId : '';
+        if (!userId || typeof expiryMillis !== 'number' || expiryMillis <= Date.now()) {
+            transaction.delete(tokenRef);
+            return false;
+        }
+        const userRef = db.collection('users').doc(userId);
+        const userSnapshot = await transaction.get(userRef);
+        if (!userSnapshot.exists) {
+            transaction.delete(tokenRef);
+            return false;
+        }
+        transaction.update(userRef, {
+            passwordHash,
+            password: null,
+            updatedAt: firebaseAdmin_1.Timestamp.now(),
+        });
+        transaction.delete(tokenRef);
+        return true;
+    });
 }
 async function listLoans(userId) {
     try {

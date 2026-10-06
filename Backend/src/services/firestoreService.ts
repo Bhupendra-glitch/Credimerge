@@ -155,6 +155,51 @@ export async function updateUserPassword(userId: string, passwordHash: string) {
   return true;
 }
 
+export async function createPasswordResetToken(
+  userId: string,
+  token: string,
+  expiresAt: Date,
+) {
+  const tokenRef = getDb().collection('passwordResetTokens').doc(token);
+  await tokenRef.create({
+    userId,
+    expiresAt: Timestamp.fromDate(expiresAt),
+    createdAt: Timestamp.now(),
+  });
+}
+
+export async function consumePasswordResetToken(token: string, passwordHash: string) {
+  const db = getDb();
+  const tokenRef = db.collection('passwordResetTokens').doc(token);
+  return db.runTransaction(async (transaction) => {
+    const tokenSnapshot = await transaction.get(tokenRef);
+    if (!tokenSnapshot.exists) return false;
+
+    const reset = tokenSnapshot.data();
+    const expiryMillis = reset?.expiresAt?.toMillis?.();
+    const userId = typeof reset?.userId === 'string' ? reset.userId : '';
+    if (!userId || typeof expiryMillis !== 'number' || expiryMillis <= Date.now()) {
+      transaction.delete(tokenRef);
+      return false;
+    }
+
+    const userRef = db.collection('users').doc(userId);
+    const userSnapshot = await transaction.get(userRef);
+    if (!userSnapshot.exists) {
+      transaction.delete(tokenRef);
+      return false;
+    }
+
+    transaction.update(userRef, {
+      passwordHash,
+      password: null,
+      updatedAt: Timestamp.now(),
+    });
+    transaction.delete(tokenRef);
+    return true;
+  });
+}
+
 export async function listLoans(userId: string): Promise<LoanRecord[]> {
   try {
     const snap = await getDb().collection('users').doc(userId).collection('loans').orderBy('createdAt', 'desc').get();

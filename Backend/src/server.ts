@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import { authenticate, AuthRequest } from './middleware/auth';
-import { changePassword, login } from './services/authService';
+import { changePassword, login, requestPasswordReset, resetPassword } from './services/authService';
 import { calculateEmi, totalInterest, buildAmortizationTable, aggregateLoans } from './services/emiService';
 import {
   getUserProfile,
@@ -78,6 +78,45 @@ app.post(['/api/login', '/api/auth/login'], async (req, res) => {
         ? 'Firebase authentication is not configured. Add Backend/credentials/firebase-service-account.json and restart the backend.'
         : 'Login is temporarily unavailable. Please try again.',
     });
+  }
+});
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const email = req.body?.email;
+  if (typeof email !== 'string') {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+
+  try {
+    const message = await requestPasswordReset(email);
+    return res.json({ message });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message === 'Enter a valid email address.') {
+      return res.status(400).json({ error: message });
+    }
+    console.error('Password reset request failed:', error);
+    return res.status(503).json({
+      error: message.startsWith('Password reset email is not configured.')
+        ? message
+        : 'Unable to process the reset request right now. Please try again.',
+    });
+  }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, newPassword, confirmPassword } = req.body || {};
+  if ([token, newPassword, confirmPassword].some((value) => typeof value !== 'string')) {
+    return res.status(400).json({ error: 'Reset link, new password and confirmation are required.' });
+  }
+
+  try {
+    await resetPassword(token, newPassword, confirmPassword);
+    return res.json({ message: 'Password reset successfully. You can now sign in.' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to reset password.';
+    console.error('Password reset failed:', error);
+    return res.status(400).json({ error: message });
   }
 });
 

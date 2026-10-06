@@ -234,9 +234,18 @@ GEMINI_API_KEY=your_google_gemini_api_key
 FRONTEND_ORIGIN=http://localhost:5173
 GOOGLE_APPLICATION_CREDENTIALS=./credentials/firebase-service-account.json
 ALLOW_DEMO_LOGIN=false
+FRONTEND_URL=http://localhost:5173
+SMTP_HOST=your-smtp-host
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-username
+SMTP_PASSWORD=your-smtp-password
+SMTP_FROM=CrediMerge <no-reply@example.com>
 ```
 
 Download a Firebase Admin SDK service-account key from Firebase Console → Project settings → Service accounts and place it at `Backend/credentials/firebase-service-account.json`. The JSON file is a private credential and is ignored by Git; never commit or share it. The backend reads this path relative to its working directory at startup.
+
+Forgot-password emails require working SMTP credentials. The emailed link expires after 30 minutes and is single-use; configure `FRONTEND_URL` to your frontend origin before deploying.
 
 Run backend:
 
