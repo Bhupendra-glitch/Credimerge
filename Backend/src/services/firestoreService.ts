@@ -17,7 +17,7 @@ export interface LoanRecord {
 }
 
 function getDemoUser(userId: string): Record<string, any> | null {
-  if (process.env.ALLOW_DEMO_LOGIN === 'false') return null;
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEMO_LOGIN !== 'true') return null;
 
   const csvPath = [
     process.env.SEED_CSV ? path.resolve(process.env.SEED_CSV) : '',
@@ -112,16 +112,22 @@ export async function getUserProfile(userId: string) {
   return { userId: userId.toUpperCase(), ...data };
 }
 
-export async function getUserAuthRecord(userId: string) {
-  try {
-    const snap = await getDb().collection('users').doc(userId).get();
-    if (snap.exists) return { userId: snap.id, ...(snap.data() || {}) } as Record<string, any>;
-  } catch (error) {
-    console.warn('Firestore unavailable; using development demo data:', error instanceof Error ? error.message : error);
+export async function getUserAuthRecord(identifier: string) {
+  const normalized = identifier.trim();
+  const users = getDb().collection('users');
+  if (normalized.includes('@')) {
+    const snapshot = await users.where('email', '==', normalized.toLowerCase()).limit(1).get();
+    if (!snapshot.empty) {
+      const user = snapshot.docs[0];
+      return { userId: user.id, ...(user.data() || {}) } as Record<string, any>;
+    }
+  } else {
+    const snapshot = await users.doc(normalized.toUpperCase()).get();
+    if (snapshot.exists) return { userId: snapshot.id, ...(snapshot.data() || {}) } as Record<string, any>;
   }
 
-  const data = getDemoUser(userId);
-  return data ? { userId: userId.toUpperCase(), ...data } : null;
+  const data = getDemoUser(normalized);
+  return data ? { userId: String(data.user_id || normalized).toUpperCase(), ...data } : null;
 }
 
 export async function updateUserProfile(

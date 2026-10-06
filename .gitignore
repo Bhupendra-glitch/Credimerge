@@ -1,2 +1,3 @@
 node_modules/
 dist/
+Backend/credentials/firebase-service-account.json

@@ -15,14 +15,18 @@ export interface LoginResult {
 }
 
 export async function login(userId: string, password: string): Promise<LoginResult> {
-  const user = await getUserAuthRecord(userId.trim().toUpperCase());
-  if (!user) throw new Error('Invalid User ID');
+  const user = await getUserAuthRecord(userId.trim());
+  if (!user) throw new Error('Invalid email/User ID or password.');
 
   let ok = false;
   if (user.passwordHash) ok = await bcrypt.compare(password, user.passwordHash);
-  else if (user.password) ok = user.password === password; // migration-only fallback
+  else if (
+    process.env.NODE_ENV !== 'production'
+    && process.env.ALLOW_DEMO_LOGIN === 'true'
+    && user.password
+  ) ok = user.password === password;
 
-  if (!ok) throw new Error('Incorrect password');
+  if (!ok) throw new Error('Invalid email/User ID or password.');
 
   const token = jwt.sign(
     { userId: user.userId, workerType: user.worker_type || user.workerType || null },

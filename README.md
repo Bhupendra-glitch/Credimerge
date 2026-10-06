@@ -230,12 +230,13 @@ Edit `Backend/.env`:
 PORT=5000
 JWT_SECRET=your_super_secret_key_here
 NODE_ENV=development
-GEMINI_API_KEY=AIza...
+GEMINI_API_KEY=your_google_gemini_api_key
 FRONTEND_ORIGIN=http://localhost:5173
-FIREBASE_PROJECT_ID=your_firebase_project
-FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxx@xxx.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_APPLICATION_CREDENTIALS=./credentials/firebase-service-account.json
+ALLOW_DEMO_LOGIN=false
 ```
+
+Download a Firebase Admin SDK service-account key from Firebase Console → Project settings → Service accounts and place it at `Backend/credentials/firebase-service-account.json`. The JSON file is a private credential and is ignored by Git; never commit or share it. The backend reads this path relative to its working directory at startup.
 
 Run backend:
 

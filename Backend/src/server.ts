@@ -51,22 +51,33 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
-app.post('/api/login', async (req, res) => {
+app.post(['/api/login', '/api/auth/login'], async (req, res) => {
   try {
-    const { userId, password } = req.body || {};
-
-    if (!userId || !password) {
-      return res.status(400).json({ error: 'User ID and password are required.' });
+    const { userId, email, password } = req.body || {};
+    const identifier = typeof email === 'string' ? email : userId;
+    if (typeof identifier !== 'string' || typeof password !== 'string' || !identifier || !password) {
+      return res.status(400).json({ error: 'Email/User ID and password are required.' });
     }
 
-    const result = await login(String(userId).trim().toUpperCase(), String(password));
-    return res.json({
-      token: result.token,
-      user: result.user,
+    return res.json(await login(identifier.trim(), password));
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Invalid email/')) {
+      return res.status(401).json({ error: error.message });
+    }
+
+    const detail = error instanceof Error ? error.message.toLowerCase() : '';
+    const firebaseConfigError = [
+      'firebase admin is not configured',
+      'firebase service-account file',
+      'default credentials',
+      'could not load the default credentials',
+    ].some((indicator) => detail.includes(indicator));
+    console.error('Login failed:', error);
+    return res.status(503).json({
+      error: firebaseConfigError
+        ? 'Firebase authentication is not configured. Add Backend/credentials/firebase-service-account.json and restart the backend.'
+        : 'Login is temporarily unavailable. Please try again.',
     });
-  } catch (error: any) {
-    const message = error?.message || 'Login failed';
-    return res.status(401).json({ error: message });
   }
 });
 
