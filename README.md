@@ -87,7 +87,7 @@ Unlike traditional credit scoring, CrediMerge analyzes **actual cashflow pattern
                            ▼
 ┌──────────────────────────────────────────────────────────────┐
 │  Node.js + Express Backend (TypeScript)                      │
-│  ├── /api/login, /api/me                                     │
+│  ├── /api/auth/register, /api/auth/login, /api/auth/me       │
 │  ├── /api/loans (CRUD)                                       │
 │  ├── /api/emi/* (Calculate, Amortize, Aggregate)             │
 │  ├── /api/dashboard/summary                                  │
@@ -268,12 +268,7 @@ npm run dev
 
 ### 4. Test Login
 
-```
-User ID:  GIG1001
-Password: GIG1001@123
-```
-
-Other demo users: `GIG1002` through `GIG1009` (password: `<user_id>@123`)
+Open `http://localhost:5173/register`, create an account, then sign in with its User ID and password. The backend must have valid Firestore credentials; account records are stored in Firestore and passwords are bcrypt-hashed.
 
 ### 5. (Optional) Analytics Engine Setup
 
