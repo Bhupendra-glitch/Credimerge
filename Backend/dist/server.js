@@ -39,21 +39,69 @@ app.get('/', (_req, res) => {
 app.get('/health', (_req, res) => {
     res.json({ status: 'healthy' });
 });
-app.post('/api/login', async (req, res) => {
+app.post(['/api/login', '/api/auth/login'], async (req, res) => {
     try {
-        const { userId, password } = req.body || {};
-        if (!userId || !password) {
-            return res.status(400).json({ error: 'User ID and password are required.' });
+        const { userId, email, password } = req.body || {};
+        const identifier = typeof email === 'string' ? email : userId;
+        if (typeof identifier !== 'string' || typeof password !== 'string' || !identifier || !password) {
+            return res.status(400).json({ error: 'Email/User ID and password are required.' });
         }
-        const result = await (0, authService_1.login)(String(userId).trim().toUpperCase(), String(password));
-        return res.json({
-            token: result.token,
-            user: result.user,
-        });
+        return res.json(await (0, authService_1.login)(identifier.trim(), password));
     }
     catch (error) {
-        const message = error?.message || 'Login failed';
-        return res.status(401).json({ error: message });
+        if (error instanceof Error && error.message.startsWith('Invalid email/')) {
+            return res.status(401).json({ error: error.message });
+        }
+        const detail = error instanceof Error ? error.message.toLowerCase() : '';
+        const firebaseConfigError = [
+            'firebase admin is not configured',
+            'firebase service-account file',
+            'default credentials',
+            'could not load the default credentials',
+        ].some((indicator) => detail.includes(indicator));
+        console.error('Login failed:', error);
+        return res.status(503).json({
+            error: firebaseConfigError
+                ? 'Firebase authentication is not configured. Add Backend/credentials/firebase-service-account.json and restart the backend.'
+                : 'Login is temporarily unavailable. Please try again.',
+        });
+    }
+});
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const email = req.body?.email;
+    if (typeof email !== 'string') {
+        return res.status(400).json({ error: 'Email address is required.' });
+    }
+    try {
+        const message = await (0, authService_1.requestPasswordReset)(email);
+        return res.json({ message });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        if (message === 'Enter a valid email address.') {
+            return res.status(400).json({ error: message });
+        }
+        console.error('Password reset request failed:', error);
+        return res.status(503).json({
+            error: message.startsWith('Password reset email is not configured.')
+                ? message
+                : 'Unable to process the reset request right now. Please try again.',
+        });
+    }
+});
+app.post('/api/auth/reset-password', async (req, res) => {
+    const { token, newPassword, confirmPassword } = req.body || {};
+    if ([token, newPassword, confirmPassword].some((value) => typeof value !== 'string')) {
+        return res.status(400).json({ error: 'Reset link, new password and confirmation are required.' });
+    }
+    try {
+        await (0, authService_1.resetPassword)(token, newPassword, confirmPassword);
+        return res.json({ message: 'Password reset successfully. You can now sign in.' });
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to reset password.';
+        console.error('Password reset failed:', error);
+        return res.status(400).json({ error: message });
     }
 });
 app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
@@ -145,6 +193,45 @@ app.get('/api/me', auth_1.authenticate, async (req, res) => {
     }
     catch (err) {
         return res.status(500).json({ error: err.message || 'Unable to load user' });
+    }
+});
+app.patch('/api/me/profile', auth_1.authenticate, async (req, res) => {
+    const fullName = typeof req.body?.fullName === 'string'
+        ? req.body.fullName.trim().replace(/\s+/g, ' ')
+        : '';
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (!fullName || fullName.length > 100 || /[\u0000-\u001f\u007f]/.test(fullName)) {
+        return res.status(400).json({ error: 'Enter a valid name up to 100 characters.' });
+    }
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Enter a valid email address.' });
+    }
+    if (phone && (!/^\+?[0-9().\s-]+$/.test(phone) || phoneDigits.length < 7 || phoneDigits.length > 15)) {
+        return res.status(400).json({ error: 'Enter a valid phone number with 7-15 digits.' });
+    }
+    try {
+        const user = await (0, firestoreService_1.updateUserProfile)(req.user.userId, { fullName, email, phone });
+        if (!user)
+            return res.status(404).json({ error: 'Profile updates are unavailable for demo accounts.' });
+        return res.json(user);
+    }
+    catch (error) {
+        return res.status(500).json({ error: error.message || 'Unable to save profile.' });
+    }
+});
+app.post('/api/me/password', auth_1.authenticate, async (req, res) => {
+    const { currentPassword, newPassword, confirmPassword } = req.body || {};
+    if ([currentPassword, newPassword, confirmPassword].some((value) => typeof value !== 'string')) {
+        return res.status(400).json({ error: 'Complete all password fields.' });
+    }
+    try {
+        await (0, authService_1.changePassword)(req.user.userId, currentPassword, newPassword, confirmPassword);
+        return res.json({ message: 'Password updated successfully.' });
+    }
+    catch (error) {
+        return res.status(400).json({ error: error.message || 'Unable to change password.' });
     }
 });
 // Compatibility with the current frontend.

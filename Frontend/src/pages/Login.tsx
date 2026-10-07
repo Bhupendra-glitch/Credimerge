@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { User } from '../types';
@@ -192,6 +192,11 @@ export default function Login() {
               >
                 {showPassword ? 'Hide' : 'Show'}
               </button>
+            </div>
+            <div className="mt-2 text-right">
+              <Link to="/forgot-password" className="text-sm font-medium text-cyan-300 hover:text-cyan-200">
+                Forgot password?
+              </Link>
             </div>
           </div>
 

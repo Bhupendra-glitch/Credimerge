@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import { authenticate, AuthRequest } from './middleware/auth';
-import { changePassword, login } from './services/authService';
+import { changePassword, login, requestPasswordReset, resetPassword } from './services/authService';
 import { calculateEmi, totalInterest, buildAmortizationTable, aggregateLoans } from './services/emiService';
 import {
   getUserProfile,
@@ -51,22 +51,72 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
-app.post('/api/login', async (req, res) => {
+app.post(['/api/login', '/api/auth/login'], async (req, res) => {
   try {
-    const { userId, password } = req.body || {};
-
-    if (!userId || !password) {
-      return res.status(400).json({ error: 'User ID and password are required.' });
+    const { userId, email, password } = req.body || {};
+    const identifier = typeof email === 'string' ? email : userId;
+    if (typeof identifier !== 'string' || typeof password !== 'string' || !identifier || !password) {
+      return res.status(400).json({ error: 'Email/User ID and password are required.' });
     }
 
-    const result = await login(String(userId).trim().toUpperCase(), String(password));
-    return res.json({
-      token: result.token,
-      user: result.user,
+    return res.json(await login(identifier.trim(), password));
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Invalid email/')) {
+      return res.status(401).json({ error: error.message });
+    }
+
+    const detail = error instanceof Error ? error.message.toLowerCase() : '';
+    const firebaseConfigError = [
+      'firebase admin is not configured',
+      'firebase service-account file',
+      'default credentials',
+      'could not load the default credentials',
+    ].some((indicator) => detail.includes(indicator));
+    console.error('Login failed:', error);
+    return res.status(503).json({
+      error: firebaseConfigError
+        ? 'Firebase authentication is not configured. Add Backend/credentials/firebase-service-account.json and restart the backend.'
+        : 'Login is temporarily unavailable. Please try again.',
     });
-  } catch (error: any) {
-    const message = error?.message || 'Login failed';
-    return res.status(401).json({ error: message });
+  }
+});
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const email = req.body?.email;
+  if (typeof email !== 'string') {
+    return res.status(400).json({ error: 'Email address is required.' });
+  }
+
+  try {
+    const message = await requestPasswordReset(email);
+    return res.json({ message });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message === 'Enter a valid email address.') {
+      return res.status(400).json({ error: message });
+    }
+    console.error('Password reset request failed:', error);
+    return res.status(503).json({
+      error: message.startsWith('Password reset email is not configured.')
+        ? message
+        : 'Unable to process the reset request right now. Please try again.',
+    });
+  }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, newPassword, confirmPassword } = req.body || {};
+  if ([token, newPassword, confirmPassword].some((value) => typeof value !== 'string')) {
+    return res.status(400).json({ error: 'Reset link, new password and confirmation are required.' });
+  }
+
+  try {
+    await resetPassword(token, newPassword, confirmPassword);
+    return res.json({ message: 'Password reset successfully. You can now sign in.' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unable to reset password.';
+    console.error('Password reset failed:', error);
+    return res.status(400).json({ error: message });
   }
 });
 

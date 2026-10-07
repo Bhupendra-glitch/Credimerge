@@ -12,7 +12,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_ORIGIN
-        value: https://credimerge-xifa.vercel.app,https://credimerge.netlify.app
+        value: https://credimerge-538h.vercel.app,https://credimerge-xifa.vercel.app,https://credimerge.netlify.app
       - key: ALLOW_DEMO_LOGIN
         value: "true"
       - key: GEMINI_API_KEY
