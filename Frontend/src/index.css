@@ -4,17 +4,58 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #050707;
+  --surface: #0a0d0d;
+  --surface-soft: #0e1212;
+  --text: #f4f7f5;
+  --muted: #7d8783;
+  --line: rgba(255, 255, 255, 0.09);
+  --green: #57e389;
+  --green-soft: rgba(87, 227, 137, 0.12);
+  --cyan: #61d9d1;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--bg);
+}
+
 body {
-  background: #03050b;
-  color: #e2e8f0;
+  background:
+    radial-gradient(
+      circle at 50% -20%,
+      rgba(87, 227, 137, 0.08),
+      transparent 35%
+    ),
+    var(--bg);
+  color: var(--text);
   font-family: 'Inter', sans-serif;
   min-height: 100vh;
   margin: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
   box-sizing: border-box;
 }
+
+::selection {
+  background: rgba(87, 227, 137, 0.25);
+  color: white;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* --------------------------------
+   APP
+-------------------------------- */
 
 .app-content {
   position: relative;
@@ -22,12 +63,15 @@ body {
   min-height: 100vh;
 }
 
+/* --------------------------------
+   DYNAMIC FINTECH BACKGROUND
+-------------------------------- */
+
 .fintech-background {
   position: fixed;
   z-index: 0;
   inset: 0;
   overflow: hidden;
-  color: #22d3ee;
   pointer-events: none;
 }
 
@@ -42,66 +86,200 @@ body {
 
 .fintech-glow {
   background:
-    radial-gradient(ellipse at 5% 8%, rgb(8 145 178 / 9%), transparent 27%),
-    radial-gradient(ellipse at 96% 9%, rgb(14 116 144 / 8%), transparent 25%),
-    radial-gradient(ellipse at 94% 94%, rgb(6 182 212 / 7%), transparent 29%);
+    radial-gradient(
+      circle at 8% 12%,
+      rgba(87, 227, 137, 0.09),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 92% 8%,
+      rgba(97, 217, 209, 0.06),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 85% 90%,
+      rgba(87, 227, 137, 0.05),
+      transparent 30%
+    );
+  filter: blur(10px);
+  animation: background-breathe 12s ease-in-out infinite alternate;
 }
 
 .fintech-grid {
   background-image:
-    linear-gradient(to right, rgb(34 211 238 / 10%) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(34 211 238 / 10%) 1px, transparent 1px);
-  background-size: 72px 72px;
-  opacity: 0.38;
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.035) 1px,
+      transparent 1px
+    );
+
+  background-size: 80px 80px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 20%,
+    black 80%,
+    transparent
+  );
+
+  opacity: 0.45;
+  animation: grid-drift 30s linear infinite;
 }
 
 .fintech-art {
-  color: #38bdf8;
+  color: var(--green);
 }
+
+/* Moving financial wave */
 
 .fintech-wave {
-  opacity: 0.12;
-  stroke-dasharray: 5 13;
-  animation: fintech-flow 36s linear infinite;
+  color: rgba(87, 227, 137, 0.55);
+  animation: wave-drift 14s ease-in-out infinite alternate;
+  transform-origin: center;
 }
 
+/* Floating network */
+
 .fintech-network {
-  opacity: 0.16;
-  animation: fintech-drift 24s ease-in-out infinite alternate;
+  color: rgba(87, 227, 137, 0.3);
+  animation: network-float 18s ease-in-out infinite alternate;
 }
 
 .fintech-node {
-  fill: #67e8f9;
-  opacity: 0.65;
-  animation: fintech-pulse 7s ease-in-out infinite alternate;
+   fill: #57e389;
+  opacity: 0.7;
+  animation: node-pulse 2.8s ease-in-out infinite;
 }
 
 .fintech-node:nth-of-type(2n) {
-  animation-delay: -3s;
+  animation-delay: -2s;
+}
+
+.fintech-node:nth-of-type(3n) {
+  animation-delay: -4s;
 }
 
 .fintech-watermarks,
 .fintech-bars {
-  opacity: 0.12;
+ color: rgba(87, 227, 137, 0.4);
+  animation: bars-float 10s ease-in-out infinite alternate;
 }
 
 .fintech-watermarks text {
   fill: currentColor;
 }
 
-@keyframes fintech-flow {
-  to { stroke-dashoffset: -144; }
+/* --------------------------------
+   PREMIUM UI UTILITIES
+-------------------------------- */
+
+.glass-panel {
+  background: rgba(10, 13, 13, 0.72);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
-@keyframes fintech-drift {
-  from { transform: translateY(-3px); }
-  to { transform: translateY(4px); }
+.glow-green {
+  box-shadow:
+    0 0 0 1px rgba(87, 227, 137, 0.08),
+    0 0 40px rgba(87, 227, 137, 0.08);
 }
 
-@keyframes fintech-pulse {
-  from { opacity: 0.3; }
-  to { opacity: 0.8; }
+.green-text {
+  color: var(--green);
 }
+
+.data-mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------
+   BUTTON MOTION
+-------------------------------- */
+
+button {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+/* --------------------------------
+   INPUTS
+-------------------------------- */
+
+.field {
+  background: rgba(10, 15, 15, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.65rem;
+  color: var(--text);
+  min-height: 2.5rem;
+  outline: none;
+  padding: 0.55rem 0.7rem;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+  width: 100%;
+}
+
+.field:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.field:focus {
+  border-color: rgba(87, 227, 137, 0.65);
+  background: rgba(12, 18, 15, 0.95);
+  box-shadow:
+    0 0 0 2px rgba(87, 227, 137, 0.1),
+    0 0 30px rgba(87, 227, 137, 0.05);
+}
+
+.field:disabled {
+  color: #68716e;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* --------------------------------
+   REMOVE BUTTON
+-------------------------------- */
+
+.remove-button {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.65rem;
+  color: #7d8783;
+  height: 2.5rem;
+  width: 2.5rem;
+  transition: all 180ms ease;
+}
+
+.remove-button:hover {
+  border-color: rgba(251, 113, 133, 0.55);
+  color: #fda4af;
+  background: rgba(251, 113, 133, 0.06);
+}
+
+/* --------------------------------
+   AUTH ANIMATIONS
+-------------------------------- */
 
 .auth-scene {
   background: transparent;
@@ -137,100 +315,207 @@ body {
 }
 
 .profile-dialog {
-  animation: profile-dialog-in 160ms ease-out;
+  animation: profile-dialog-in 180ms ease-out;
+}
+
+/* --------------------------------
+   KEYFRAMES
+-------------------------------- */
+
+@keyframes background-breathe {
+  from {
+    opacity: 0.65;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes grid-drift {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(80px);
+  }
+}
+
+@keyframes fintech-flow {
+  to {
+    stroke-dashoffset: -160;
+  }
+}
+
+@keyframes fintech-drift {
+  from {
+    transform: translate3d(0, -6px, 0);
+  }
+
+  to {
+    transform: translate3d(0, 8px, 0);
+  }
+}
+
+@keyframes fintech-pulse {
+  from {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+
+  to {
+    opacity: 0.8;
+    transform: scale(1.15);
+  }
 }
 
 @keyframes profile-dialog-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.985); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes auth-drift {
-  from { transform: translateY(-5px); }
-  to { transform: translateY(7px); }
+  from {
+    transform: translateY(-5px);
+  }
+
+  to {
+    transform: translateY(7px);
+  }
 }
 
 @keyframes auth-network-pulse {
-  from { opacity: .08; }
-  to { opacity: .2; }
+  from {
+    opacity: 0.08;
+  }
+
+  to {
+    opacity: 0.2;
+  }
 }
 
 @keyframes auth-data-flow {
-  to { stroke-dashoffset: -120; }
+  to {
+    stroke-dashoffset: -120;
+  }
 }
 
 @keyframes auth-data-pulse {
-  from { opacity: .1; }
-  to { opacity: .23; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fintech-wave,
-  .fintech-network,
-  .fintech-node {
-    animation: none;
+  from {
+    opacity: 0.1;
   }
 
+  to {
+    opacity: 0.23;
+  }
+}
+
+/* --------------------------------
+   SCROLLBAR
+-------------------------------- */
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050707;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #26302c;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b4943;
+}
+
+/* --------------------------------
+   REDUCED MOTION
+-------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .fintech-glow,
+  .fintech-grid,
+  .fintech-wave,
+  .fintech-network,
+  .fintech-node,
   .auth-art-float,
   .auth-network,
   .auth-chart-line,
-  .auth-data {
-    animation: none;
-  }
-
+  .auth-data,
   .profile-dialog {
     animation: none;
   }
+
+  button {
+    transition: none;
+  }
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
+@keyframes wave-drift {
+  0% {
+    transform: translate3d(-12px, 4px, 0);
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: translate3d(18px, -8px, 0);
+    opacity: 0.45;
+  }
 }
 
-button, input, select, textarea {
-  font-family: inherit;
+@keyframes network-float {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.3;
+  }
+
+  100% {
+    transform: translate3d(10px, -12px, 0);
+    opacity: 0.6;
+  }
 }
 
-.field {
-  background: #0b1220;
-  border: 1px solid #334155;
-  border-radius: 0.5rem;
-  color: #e2e8f0;
-  min-height: 2.25rem;
-  outline: none;
-  padding: 0.45rem 0.6rem;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-  width: 100%;
+@keyframes node-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
-.field:focus {
-  border-color: #22d3ee;
-  box-shadow: 0 0 0 2px rgb(34 211 238 / 12%);
-}
+@keyframes bars-float {
+  0% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
 
-.field:disabled {
-  color: #94a3b8;
-  cursor: not-allowed;
-  opacity: 0.8;
-}
-
-.remove-button {
-  border: 1px solid #334155;
-  border-radius: 0.5rem;
-  color: #94a3b8;
-  height: 2.25rem;
-  width: 2.25rem;
-}
-
-.remove-button:hover {
-  border-color: #fb7185;
-  color: #fda4af;
+  100% {
+    transform: translateY(-10px);
+    opacity: 0.65;
+  }
 }

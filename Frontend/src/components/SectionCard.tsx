@@ -15,35 +15,91 @@ export default function SectionCard({
   ctaLabel,
   onOpen,
 }: SectionCardProps) {
-  const border = accent === 'green' ? 'border-green-500/40' : 'border-blue-500/40';
-  const bg = accent === 'green' ? 'from-green-500/10' : 'from-blue-500/10';
-  const btnBg =
-    accent === 'green'
-      ? 'from-green-500 to-emerald-500'
-      : 'from-blue-500 to-cyan-500';
+  const isGreen = accent === 'green';
 
   return (
     <div
-      className={`bg-gradient-to-br ${bg} to-slate-900/70 border ${border} rounded-2xl p-8 flex flex-col`}
+      className={`
+        group relative overflow-hidden
+        bg-slate-950/60
+        border
+        ${isGreen ? 'border-emerald-400/20 hover:border-emerald-400/50' : 'border-cyan-400/20 hover:border-cyan-400/50'}
+        p-8
+        flex flex-col
+        transition-all duration-500
+        hover:-translate-y-1
+      `}
     >
-      <div className="text-4xl mb-3">{icon}</div>
-      <h2 className="text-2xl font-bold text-slate-100 mb-6">{title}</h2>
+      {/* Ambient glow */}
+      <div
+        className={`
+          absolute -top-24 -right-24
+          w-48 h-48 rounded-full blur-[90px]
+          opacity-20 group-hover:opacity-40
+          transition-opacity duration-500
+          ${isGreen ? 'bg-emerald-400' : 'bg-cyan-400'}
+        `}
+      />
 
-      <div className="space-y-4 mb-8 flex-1">
-        {items.map((it, i) => (
+      {/* Header */}
+      <div className="relative flex items-start justify-between mb-10">
+        <div>
           <div
-            key={i}
-            className="flex justify-between items-baseline border-b border-slate-700/30 pb-2"
+            className={`data-mono text-[10px] uppercase tracking-[0.25em] mb-3 ${
+              isGreen ? 'text-emerald-400/60' : 'text-cyan-400/60'
+            }`}
           >
-            <span className="text-slate-400 text-sm">{it.label}</span>
-            <span className="text-slate-100 font-bold font-mono">{it.value}</span>
+            {isGreen ? 'Debt / 01' : 'Credit / 02'}
+          </div>
+
+          <h2 className="text-2xl font-bold text-white">
+            {title}
+          </h2>
+        </div>
+
+        <div
+          className={`
+            text-xl transition-transform duration-300
+            group-hover:translate-x-1 group-hover:-translate-y-1
+            ${isGreen ? 'text-emerald-400' : 'text-cyan-400'}
+          `}
+        >
+          ↗
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="relative space-y-5 mb-10 flex-1">
+        {items.map((item, index) => (
+          <div
+            key={index}
+            className="flex items-end justify-between gap-4 border-b border-white/[0.06] pb-3"
+          >
+            <span className="text-[10px] uppercase tracking-[0.15em] text-slate-500">
+              {item.label}
+            </span>
+
+            <span className="data-mono text-sm md:text-base font-semibold text-slate-200">
+              {item.value}
+            </span>
           </div>
         ))}
       </div>
 
+      {/* CTA */}
       <button
         onClick={onOpen}
-        className={`w-full bg-gradient-to-r ${btnBg} text-white font-bold py-3 rounded-xl hover:opacity-90 transition`}
+        className={`
+          relative w-full py-3
+          text-xs uppercase tracking-[0.16em] font-semibold
+          border
+          transition-all duration-300
+          ${
+            isGreen
+              ? 'border-emerald-400/30 text-emerald-400 hover:bg-emerald-400 hover:text-black'
+              : 'border-cyan-400/30 text-cyan-400 hover:bg-cyan-400 hover:text-black'
+          }
+        `}
       >
         {ctaLabel}
       </button>
