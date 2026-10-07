@@ -5,6 +5,7 @@
   },
   "dependencies": {
     "dotenv": "^18.0.1",
+    "firebase": "^12.19.0",
     "mongoose": "^9.10.1"
   }
 }
