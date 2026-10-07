@@ -5,7 +5,7 @@ const configuredApiUrl = String(import.meta.env.VITE_API_URL || '').trim();
 const browserApiUrl = typeof window !== 'undefined'
   ? `${window.location.protocol}//${window.location.hostname}:5000`
   : 'http://localhost:5000';
-const productionApiUrl = 'https://credimerge-api.onrender.com';
+const productionApiUrl = 'https://credimerge0.onrender.com';
 export const API_URL = (configuredApiUrl || (import.meta.env.PROD ? productionApiUrl : browserApiUrl))
   .replace(/\/$/, '');
 
