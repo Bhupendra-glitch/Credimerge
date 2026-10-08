@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -44,13 +44,52 @@ function initialsFor(name: string) {
   return initials.toUpperCase() || 'U';
 }
 
+async function optimizeProfilePhoto(file: File) {
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    throw new Error('Choose a JPG, PNG, or WebP image.');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('Choose an image smaller than 5 MB.');
+  }
+
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, 512 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Unable to process this image. Please try another file.');
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    for (const quality of [0.82, 0.68, 0.54]) {
+      const photo = canvas.toDataURL('image/jpeg', quality);
+      const encoded = photo.slice(photo.indexOf(',') + 1);
+      const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0;
+      const size = Math.ceil(encoded.length * 3 / 4) - padding;
+      if (size <= 400 * 1024) return photo;
+    }
+    throw new Error('This image is too detailed to upload. Choose a different photo.');
+  } finally {
+    bitmap.close();
+  }
+}
+
+function profilePhotoSource(value: string | null | undefined) {
+  return value?.startsWith('data:image/jpeg;base64,') ? value : null;
+}
+
 export default function ProfileMenu({ onLogout }: { onLogout: () => void }) {
   const { user, updateUser } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
   const avatarButtonRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [panel, setPanel] = useState<ProfilePanel | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [draft, setDraft] = useState<ProfileDraft>({ fullName: '', email: '', phone: '' });
+  const [photoDraft, setPhotoDraft] = useState<string | null>(null);
+  const [photoSaving, setPhotoSaving] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -102,7 +141,9 @@ export default function ProfileMenu({ onLogout }: { onLogout: () => void }) {
   const openPanel = (nextPanel: ProfilePanel) => {
     setMenuOpen(false);
     setFeedback(null);
-    if (nextPanel === 'settings') {
+    setIsEditingProfile(false);
+    setPhotoDraft(user.profilePhoto || null);
+    if (nextPanel === 'profile' || nextPanel === 'settings') {
       setDraft({ fullName: user.fullName || '', email: user.email || '', phone: user.phone || '' });
     }
     if (nextPanel === 'password') {
@@ -115,8 +156,47 @@ export default function ProfileMenu({ onLogout }: { onLogout: () => void }) {
 
   const closePanel = () => {
     setPanel(null);
+    setIsEditingProfile(false);
     setFeedback(null);
     avatarButtonRef.current?.focus();
+  };
+
+  const cancelProfileEdit = () => {
+    setDraft({ fullName: user.fullName || '', email: user.email || '', phone: user.phone || '' });
+    setIsEditingProfile(false);
+    setFeedback(null);
+  };
+
+  const handlePhotoFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setFeedback(null);
+    try {
+      setPhotoDraft(await optimizeProfilePhoto(file));
+    } catch (error: unknown) {
+      setFeedback({
+        kind: 'error',
+        text: error instanceof Error ? error.message : 'Unable to process this image.',
+      });
+    }
+  };
+
+  const savePhoto = async () => {
+    if (photoDraft === (user.profilePhoto || null)) return;
+    setPhotoSaving(true);
+    setFeedback(null);
+    try {
+      const response = await api.updateProfilePhoto(photoDraft);
+      updateUser(response.data);
+      setPhotoDraft(response.data.profilePhoto || null);
+      setFeedback({ kind: 'success', text: photoDraft ? 'Profile photo updated.' : 'Profile photo removed.' });
+    } catch (error: unknown) {
+      setFeedback({ kind: 'error', text: getErrorMessage(error, 'Unable to save profile photo.') });
+    } finally {
+      setPhotoSaving(false);
+    }
   };
 
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
@@ -127,6 +207,7 @@ export default function ProfileMenu({ onLogout }: { onLogout: () => void }) {
       const response = await api.updateProfile(draft);
       updateUser(response.data);
       setFeedback({ kind: 'success', text: 'Profile details saved.' });
+      if (panel === 'profile') setIsEditingProfile(false);
     } catch (error: unknown) {
       setFeedback({ kind: 'error', text: getErrorMessage(error, 'Unable to save profile details.') });
     } finally {
@@ -178,7 +259,9 @@ export default function ProfileMenu({ onLogout }: { onLogout: () => void }) {
           onClick={() => setMenuOpen((open) => !open)}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-cyan-400/40 bg-gradient-to-br from-emerald-400/25 to-cyan-500/25 text-sm font-bold text-cyan-100 shadow-sm transition hover:border-cyan-300 hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-cyan-400/50"
         >
-          {initialsFor(displayName)}
+          {profilePhotoSource(user.profilePhoto) ? (
+            <img src={profilePhotoSource(user.profilePhoto) || undefined} alt="" className="h-full w-full rounded-full object-cover" />
+          ) : initialsFor(displayName)}
         </button>
         <div
           role="menu"
@@ -240,24 +323,98 @@ export default function ProfileMenu({ onLogout }: { onLogout: () => void }) {
             </div>
 
             {panel === 'profile' && (
-              <div className="space-y-5 p-5 sm:p-6">
+              <form onSubmit={saveProfile} className="space-y-5 p-5 sm:p-6">
                 <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-cyan-400/40 bg-gradient-to-br from-emerald-400/25 to-cyan-500/25 text-xl font-bold text-cyan-100">{initialsFor(displayName)}</div>
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-cyan-400/40 bg-gradient-to-br from-emerald-400/25 to-cyan-500/25 text-xl font-bold text-cyan-100">
+                    {profilePhotoSource(photoDraft) ? (
+                      <img src={profilePhotoSource(photoDraft) || undefined} alt={`${displayName} profile`} className="h-full w-full object-cover" />
+                    ) : initialsFor(displayName)}
+                  </div>
                   <div className="min-w-0">
                     <div className="truncate text-lg font-semibold text-slate-100">{displayName}</div>
                     <div className="text-sm text-slate-400">{user.worker_type || 'User'}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handlePhotoFileChange}
+                        className="sr-only"
+                        aria-label="Choose a profile photo"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={photoSaving}
+                        className="rounded-md border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-cyan-200 transition hover:border-cyan-400/40 hover:bg-cyan-400/10 disabled:opacity-50"
+                      >
+                        {photoDraft ? 'Change photo' : 'Upload photo'}
+                      </button>
+                      {photoDraft !== (user.profilePhoto || null) && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={savePhoto}
+                            disabled={photoSaving}
+                            className="rounded-md bg-cyan-400 px-2.5 py-1.5 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:opacity-50"
+                          >
+                            {photoSaving ? 'Saving...' : photoDraft ? 'Save photo' : 'Remove photo'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setPhotoDraft(user.profilePhoto || null); setFeedback(null); }}
+                            disabled={photoSaving}
+                            className="rounded-md px-2.5 py-1.5 text-xs text-slate-400 transition hover:text-white disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      )}
+                      {photoDraft && photoDraft === (user.profilePhoto || null) && (
+                        <button
+                          type="button"
+                          onClick={() => { setPhotoDraft(null); setFeedback(null); }}
+                          className="rounded-md px-2.5 py-1.5 text-xs text-slate-400 transition hover:text-rose-300"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <dl className="grid gap-x-6 sm:grid-cols-2">
                   <ProfileField label="User ID" value={userId} />
-                  <ProfileField label="Name" value={user.fullName || 'Not provided'} />
+                  {isEditingProfile ? (
+                    <div className="border-b border-slate-800 py-3">
+                      <FormField label="Name" autoComplete="name" value={draft.fullName} maxLength={100} onChange={(value) => setDraft({ ...draft, fullName: value })} required />
+                    </div>
+                  ) : <ProfileField label="Name" value={user.fullName || 'Not provided'} />}
                   <ProfileField label="User type / role" value={user.worker_type || 'Not provided'} />
-                  <ProfileField label="Email" value={user.email || 'Not provided'} />
-                  <ProfileField label="Phone number" value={user.phone || 'Not provided'} />
+                  {isEditingProfile ? (
+                    <div className="border-b border-slate-800 py-3">
+                      <FormField label="Email" type="email" autoComplete="email" value={draft.email} maxLength={254} onChange={(value) => setDraft({ ...draft, email: value })} required />
+                    </div>
+                  ) : <ProfileField label="Email" value={user.email || 'Not provided'} />}
+                  {isEditingProfile ? (
+                    <div className="border-b border-slate-800 py-3">
+                      <FormField label="Phone number" type="tel" autoComplete="tel" value={draft.phone} maxLength={24} onChange={(value) => setDraft({ ...draft, phone: value })} />
+                    </div>
+                  ) : <ProfileField label="Phone number" value={user.phone || 'Not provided'} />}
                   <ProfileField label="Monthly income" value={formatMoney(user.monthly_income)} />
                   <ProfileField label="Account created" value={formatCreatedAt(user.createdAt)} />
                 </dl>
-              </div>
+                <Feedback feedback={feedback} />
+                {isEditingProfile ? (
+                  <div className="flex justify-end gap-3">
+                    <button type="button" onClick={cancelProfileEdit} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:bg-slate-800">Cancel</button>
+                    <button type="submit" disabled={saving} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-60">{saving ? 'Saving...' : 'Save changes'}</button>
+                  </div>
+                ) : (
+                  <div className="flex justify-end">
+                    <button type="button" onClick={() => { setFeedback(null); setIsEditingProfile(true); }} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300">Edit profile</button>
+                  </div>
+                )}
+              </form>
             )}
 
             {panel === 'settings' && (

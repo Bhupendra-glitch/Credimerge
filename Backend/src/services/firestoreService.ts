@@ -146,6 +146,24 @@ export async function updateUserProfile(
   return updatedProfile;
 }
 
+export async function updateUserPhoto(userId: string, profilePhoto: string | null) {
+  const ref = getDb().collection('users').doc(userId);
+  const snap = await ref.get();
+  if (!snap.exists) return null;
+
+  const updatedAt = Timestamp.now();
+  await ref.update({ profilePhoto, updatedAt });
+  const updatedProfile = {
+    userId: snap.id,
+    ...(snap.data() || {}),
+    profilePhoto,
+    updatedAt,
+  } as Record<string, any>;
+  delete updatedProfile.passwordHash;
+  delete updatedProfile.password;
+  return updatedProfile;
+}
+
 export async function updateUserPassword(userId: string, passwordHash: string) {
   const ref = getDb().collection('users').doc(userId);
   const snap = await ref.get();

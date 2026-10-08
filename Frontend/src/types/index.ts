@@ -4,6 +4,7 @@ export interface User {
   fullName?: string;
   email?: string;
   phone?: string;
+  profilePhoto?: string | null;
   createdAt?: unknown;
   age: number;
   worker_type: string;

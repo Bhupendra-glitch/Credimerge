@@ -87,6 +87,9 @@ export const api = {
   updateProfile: (profile: { fullName: string; email: string; phone: string }) =>
     client.patch('/api/me/profile', profile),
 
+  updateProfilePhoto: (profilePhoto: string | null) =>
+    client.patch('/api/me/photo', { profilePhoto }),
+
   changePassword: (passwords: { currentPassword: string; newPassword: string; confirmPassword: string }) =>
     client.post('/api/me/password', passwords),
 

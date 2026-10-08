@@ -8,6 +8,7 @@ import { calculateEmi, totalInterest, buildAmortizationTable, aggregateLoans } f
 import {
   getUserProfile,
   updateUserProfile,
+  updateUserPhoto,
   listLoans,
   getLoan,
   createLoan,
@@ -253,6 +254,31 @@ app.patch('/api/me/profile', authenticate, async (req: AuthRequest, res) => {
     return res.json(user);
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Unable to save profile.' });
+  }
+});
+
+app.patch('/api/me/photo', authenticate, async (req: AuthRequest, res) => {
+  const profilePhoto = req.body?.profilePhoto;
+  if (profilePhoto !== null && typeof profilePhoto !== 'string') {
+    return res.status(400).json({ error: 'Choose a valid profile photo.' });
+  }
+  if (typeof profilePhoto === 'string') {
+    const imageData = profilePhoto.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/);
+    if (!imageData || imageData[1].length > 550_000) {
+      return res.status(400).json({ error: 'Profile photos must be JPEG images under 400 KB.' });
+    }
+    const imageBytes = Buffer.from(imageData[1], 'base64');
+    if (imageBytes.length > 400 * 1024 || imageBytes[0] !== 0xff || imageBytes[1] !== 0xd8 || imageBytes[2] !== 0xff) {
+      return res.status(400).json({ error: 'Profile photos must be valid JPEG images under 400 KB.' });
+    }
+  }
+
+  try {
+    const user = await updateUserPhoto(req.user!.userId, profilePhoto);
+    if (!user) return res.status(404).json({ error: 'Profile photo updates are unavailable for demo accounts.' });
+    return res.json(user);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'Unable to save profile photo.' });
   }
 });
 
