@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import './index.css';
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -46,11 +47,13 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		<AppErrorBoundary>
-			<BrowserRouter>
-				<AuthProvider>
-					<App />
-				</AuthProvider>
-			</BrowserRouter>
+			<ThemeProvider>
+				<BrowserRouter>
+					<AuthProvider>
+						<App />
+					</AuthProvider>
+				</BrowserRouter>
+			</ThemeProvider>
 		</AppErrorBoundary>
 	</StrictMode>,
 );
