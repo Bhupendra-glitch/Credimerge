@@ -64,7 +64,7 @@ const client = axios.create({
 });
 
 client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('credimerge_token');
+  const token = localStorage.getItem('credimerge_token') || sessionStorage.getItem('credimerge_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -77,8 +77,24 @@ client.interceptors.request.use((config) => {
 });
 
 export const api = {
-  login: (userId: string, password: string) =>
-    client.post('/api/login', { userId, password }),
+  login: (identifier: string, password: string) =>
+    client.post('/api/auth/login', {
+      email: identifier.includes('@') ? identifier : undefined,
+      userId: identifier.includes('@') ? undefined : identifier,
+      password,
+    }),
+
+  register: (payload: { email: string; password: string; fullName: string; workerType?: string }) =>
+    client.post('/api/auth/register', payload),
+
+  verifyEmail: (email: string, code: string) =>
+    client.post('/api/auth/verify-email', { email, code }),
+
+  resendVerification: (email: string) =>
+    client.post('/api/auth/resend-verification', { email }),
+
+  googleAuth: (payload: { email: string; name?: string; picture?: string; credential?: string }) =>
+    client.post('/api/auth/google', payload),
 
   getUser: (id: string) => client.get(`/api/user/${id}`),
 

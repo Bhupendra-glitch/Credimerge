@@ -87,7 +87,7 @@ function getPasswordResetMailer() {
   const pass = process.env.SMTP_PASSWORD;
   const from = process.env.SMTP_FROM || user;
   if (!host || !Number.isInteger(port) || port < 1 || port > 65535 || !user || !pass || !from) {
-    throw new Error('Password reset email is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.');
+    return null;
   }
 
   return {
@@ -101,6 +101,265 @@ function getPasswordResetMailer() {
   };
 }
 
+export function validatePasswordStrength(password: string) {
+  if (!password || password.length < 8) {
+    throw new Error('Password must be at least 8 characters long.');
+  }
+  if (Buffer.byteLength(password, 'utf8') > 72) {
+    throw new Error('Password must be no longer than 72 bytes.');
+  }
+}
+
+export async function registerUser({
+  email,
+  password,
+  fullName,
+  workerType,
+}: {
+  email: string;
+  password: string;
+  fullName: string;
+  workerType?: string;
+}) {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > 254) {
+    throw new Error('Enter a valid email address.');
+  }
+  if (!fullName || fullName.trim().length < 2) {
+    throw new Error('Enter your full name (at least 2 characters).');
+  }
+  validatePasswordStrength(password);
+
+  const existing = await getUserAuthRecord(normalizedEmail);
+  if (existing) {
+    throw new Error('An account with this email address already exists. Please log in.');
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const userId = `GIG${Date.now().toString().slice(-4)}${randomSuffix}`;
+
+  const defaultFinancials = {
+    userId,
+    user_id: userId,
+    fullName: fullName.trim(),
+    email: normalizedEmail,
+    worker_type: workerType || 'Delivery Partner',
+    passwordHash,
+    emailVerified: false,
+    age: 28,
+    monthly_income: 42000,
+    income_stability_score: 0.72,
+    monthly_expenses: 24000,
+    monthly_savings: 12000,
+    existing_debt: 28000,
+    monthly_emi: 2200,
+    credit_card_balance: 14000,
+    bnpl_balance: 5000,
+    vehicle_loan_outstanding: 0,
+    active_loan_count: 1,
+    repayment_rate: 0.88,
+    missed_payments_12m: 0,
+    foir_pct: 5.24,
+    monthly_cashflow: 18000,
+    cashflow_score: 68.5,
+    risk_band: 'Low Risk',
+    forecast_30d_cashflow: 16200,
+    forecast_60d_cashflow: 16500,
+    forecast_90d_cashflow: 16800,
+    createdAt: new Date().toISOString(),
+  };
+
+  const { createOrUpdateUser, storeEmailVerificationCode } = await import('./firestoreService');
+  await createOrUpdateUser(defaultFinancials);
+
+  // Generate 6-digit OTP code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  await storeEmailVerificationCode(normalizedEmail, code, expiresAt);
+
+  const mailer = getPasswordResetMailer();
+  if (mailer) {
+    try {
+      await mailer.transport.sendMail({
+        from: mailer.from,
+        to: normalizedEmail,
+        subject: `${code} is your CrediMerge verification code`,
+        text: `Welcome to CrediMerge, ${fullName}!\n\nYour 6-digit email verification code is: ${code}\n\nThis code will expire in 15 minutes.`,
+        html: `<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2>Welcome to CrediMerge, ${fullName}!</h2>
+          <p>Please use the verification code below to verify your email address:</p>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #059669; padding: 16px 0;">${code}</div>
+          <p style="color: #64748b; font-size: 14px;">This code will expire in 15 minutes. If you did not sign up for CrediMerge, please ignore this email.</p>
+        </div>`,
+      });
+    } catch (err) {
+      console.warn('Unable to send verification email via SMTP:', err);
+    }
+  } else {
+    console.log(`[CrediMerge DEV] Email verification code for ${normalizedEmail}: ${code}`);
+  }
+
+  return {
+    message: 'Verification code sent to your email address.',
+    email: normalizedEmail,
+    requiresVerification: true,
+    devCode: mailer ? undefined : code,
+  };
+}
+
+export async function verifyEmailCode(email: string, code: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const { verifyEmailCodeRecord, getUserAuthRecord, createOrUpdateUser } = await import('./firestoreService');
+  
+  const isValid = await verifyEmailCodeRecord(normalizedEmail, code.trim());
+  if (!isValid) {
+    throw new Error('Invalid or expired verification code. Please check and try again.');
+  }
+
+  const user = await getUserAuthRecord(normalizedEmail);
+  if (!user) {
+    throw new Error('User account not found.');
+  }
+
+  user.emailVerified = true;
+  await createOrUpdateUser(user);
+
+  const token = jwt.sign(
+    { userId: user.userId || user.user_id, workerType: user.worker_type || null },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  const safe = { ...user };
+  delete safe.password;
+  delete safe.passwordHash;
+
+  return {
+    token,
+    user: safe,
+    message: 'Email successfully verified!',
+  };
+}
+
+export async function resendVerificationCode(email: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+  const { getUserAuthRecord, storeEmailVerificationCode } = await import('./firestoreService');
+  const user = await getUserAuthRecord(normalizedEmail);
+  if (!user) {
+    throw new Error('No account found with this email address.');
+  }
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+  await storeEmailVerificationCode(normalizedEmail, code, expiresAt);
+
+  const mailer = getPasswordResetMailer();
+  if (mailer) {
+    try {
+      await mailer.transport.sendMail({
+        from: mailer.from,
+        to: normalizedEmail,
+        subject: `${code} is your new CrediMerge verification code`,
+        text: `Your new 6-digit email verification code is: ${code}\n\nThis code expires in 15 minutes.`,
+        html: `<div style="font-family: sans-serif; padding: 20px;">
+          <h2>Your Verification Code</h2>
+          <div style="font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #059669; padding: 16px 0;">${code}</div>
+          <p style="color: #64748b;">This code expires in 15 minutes.</p>
+        </div>`,
+      });
+    } catch (err) {
+      console.warn('Unable to resend email via SMTP:', err);
+    }
+  } else {
+    console.log(`[CrediMerge DEV] Resent verification code for ${normalizedEmail}: ${code}`);
+  }
+
+  return {
+    message: 'New verification code sent to your email.',
+    email: normalizedEmail,
+    devCode: mailer ? undefined : code,
+  };
+}
+
+export async function googleLogin(payload: {
+  email: string;
+  name?: string;
+  picture?: string;
+  credential?: string;
+}) {
+  const normalizedEmail = (payload.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new Error('A valid email is required for Google Sign-In.');
+  }
+
+  const { getUserAuthRecord, createOrUpdateUser } = await import('./firestoreService');
+  let user = await getUserAuthRecord(normalizedEmail);
+
+  if (!user) {
+    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const userId = `GOOG${Date.now().toString().slice(-4)}${randomSuffix}`;
+    user = {
+      userId,
+      user_id: userId,
+      fullName: payload.name || normalizedEmail.split('@')[0],
+      email: normalizedEmail,
+      profilePhoto: payload.picture || null,
+      worker_type: 'Gig Worker',
+      emailVerified: true,
+      authProvider: 'google',
+      age: 30,
+      monthly_income: 45000,
+      income_stability_score: 0.78,
+      monthly_expenses: 25000,
+      monthly_savings: 14000,
+      existing_debt: 22000,
+      monthly_emi: 1800,
+      credit_card_balance: 11000,
+      bnpl_balance: 3000,
+      vehicle_loan_outstanding: 0,
+      active_loan_count: 1,
+      repayment_rate: 0.92,
+      missed_payments_12m: 0,
+      foir_pct: 4.0,
+      monthly_cashflow: 20000,
+      cashflow_score: 72.0,
+      risk_band: 'Low Risk',
+      forecast_30d_cashflow: 18000,
+      forecast_60d_cashflow: 18300,
+      forecast_90d_cashflow: 18600,
+      createdAt: new Date().toISOString(),
+    };
+    await createOrUpdateUser(user);
+  } else {
+    // If existing, ensure emailVerified is true and update picture if not set
+    let shouldUpdate = false;
+    if (!user.emailVerified) {
+      user.emailVerified = true;
+      shouldUpdate = true;
+    }
+    if (!user.profilePhoto && payload.picture) {
+      user.profilePhoto = payload.picture;
+      shouldUpdate = true;
+    }
+    if (shouldUpdate) {
+      await createOrUpdateUser(user);
+    }
+  }
+
+  const token = jwt.sign(
+    { userId: user.userId || user.user_id, workerType: user.worker_type || null },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+
+  const safe = { ...user };
+  delete safe.password;
+  delete safe.passwordHash;
+
+  return { token, user: safe };
+}
+
 export async function requestPasswordReset(email: string) {
   const normalizedEmail = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > 254) {
@@ -110,30 +369,38 @@ export async function requestPasswordReset(email: string) {
   const mailer = getPasswordResetMailer();
   const user = await getUserAuthRecord(normalizedEmail);
   if (!user || typeof user.email !== 'string' || user.email.toLowerCase() !== normalizedEmail) {
-    return resetPasswordMessage;
+    return { message: resetPasswordMessage };
   }
 
   const rawToken = randomBytes(32).toString('hex');
   const tokenHash = createHash('sha256').update(rawToken).digest('hex');
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-  await createPasswordResetToken(user.userId, tokenHash, expiresAt);
+  await createPasswordResetToken(user.userId || user.user_id, tokenHash, expiresAt);
 
   const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
   const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
-  try {
-    await mailer.transport.sendMail({
-      from: mailer.from,
-      to: normalizedEmail,
-      subject: 'Reset your CrediMerge password',
-      text: `Use this link to reset your CrediMerge password. It expires in 30 minutes:\n\n${resetUrl}\n\nIf you did not request a password reset, you can ignore this email.`,
-      html: `<p>Use the link below to reset your CrediMerge password. It expires in 30 minutes.</p><p><a href="${resetUrl}">Reset password</a></p><p>If you did not request a password reset, you can ignore this email.</p>`,
-    });
-  } catch (error) {
-    console.error('Unable to send password reset email:', error);
-    throw new Error('Unable to send the password reset email. Check SMTP configuration and try again.');
+
+  if (mailer) {
+    try {
+      await mailer.transport.sendMail({
+        from: mailer.from,
+        to: normalizedEmail,
+        subject: 'Reset your CrediMerge password',
+        text: `Use this link to reset your CrediMerge password. It expires in 30 minutes:\n\n${resetUrl}\n\nIf you did not request a password reset, you can ignore this email.`,
+        html: `<p>Use the link below to reset your CrediMerge password. It expires in 30 minutes.</p><p><a href="${resetUrl}">Reset password</a></p><p>If you did not request a password reset, you can ignore this email.</p>`,
+      });
+    } catch (error) {
+      console.error('Unable to send password reset email:', error);
+      // Fallback in dev: don't crash
+      console.log(`[CrediMerge DEV] Password reset link for ${normalizedEmail}: ${resetUrl}`);
+      return { message: resetPasswordMessage, devResetUrl: resetUrl, token: rawToken };
+    }
+  } else {
+    console.log(`[CrediMerge DEV] Password reset link for ${normalizedEmail}: ${resetUrl}`);
+    return { message: resetPasswordMessage, devResetUrl: resetUrl, token: rawToken };
   }
 
-  return resetPasswordMessage;
+  return { message: resetPasswordMessage };
 }
 
 export async function resetPassword(
@@ -165,3 +432,4 @@ export function verifyToken(token: string) {
 export function hashPassword(password: string) {
   return bcrypt.hash(password, 12);
 }
+

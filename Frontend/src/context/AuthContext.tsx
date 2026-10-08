@@ -5,7 +5,7 @@ import { api } from '../api/client';
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (user: User, token: string) => void;
+  login: (user: User, token: string, rememberMe?: boolean) => void;
   updateUser: (user: User) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -17,8 +17,11 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const isValidUser = (value: unknown): value is User => {
   if (!value || typeof value !== 'object') return false;
 
-  const candidate = value as Partial<User>;
-  const requiredTextFields: Array<keyof User> = ['user_id', 'worker_type', 'risk_band'];
+  const candidate = value as Record<string, any>;
+  const userIdVal = candidate.user_id || candidate.userId;
+  if (!userIdVal || typeof userIdVal !== 'string') return false;
+
+  const requiredTextFields: Array<keyof User> = ['worker_type', 'risk_band'];
   const requiredNumberFields: Array<keyof User> = [
     'age', 'monthly_income', 'income_stability_score', 'monthly_expenses',
     'monthly_savings', 'existing_debt', 'monthly_emi', 'credit_card_balance',
@@ -38,22 +41,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('credimerge_token');
-    const savedUser = localStorage.getItem('credimerge_user');
+    const isPersistent = !!localStorage.getItem('credimerge_token');
+    const storage = isPersistent ? localStorage : sessionStorage;
+    const savedToken = storage.getItem('credimerge_token');
+    const savedUser = storage.getItem('credimerge_user');
+
     if (savedToken && savedUser) {
       let parsedUser: User;
       try {
         parsedUser = JSON.parse(savedUser) as User;
+        if (!parsedUser.user_id && parsedUser.userId) {
+          parsedUser.user_id = parsedUser.userId;
+        }
       } catch {
-        localStorage.removeItem('credimerge_token');
-        localStorage.removeItem('credimerge_user');
+        storage.removeItem('credimerge_token');
+        storage.removeItem('credimerge_user');
         setLoading(false);
         return;
       }
 
       if (!isValidUser(parsedUser)) {
-        localStorage.removeItem('credimerge_token');
-        localStorage.removeItem('credimerge_user');
+        storage.removeItem('credimerge_token');
+        storage.removeItem('credimerge_user');
         setLoading(false);
         return;
       }
@@ -67,12 +76,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       api.getMe()
         .then((response) => {
-          setUser(response.data);
-          localStorage.setItem('credimerge_user', JSON.stringify(response.data));
+          const fetchedUser = {
+            ...response.data,
+            user_id: response.data.user_id || response.data.userId,
+          };
+          setUser(fetchedUser);
+          storage.setItem('credimerge_user', JSON.stringify(fetchedUser));
         })
         .catch(() => {
-          localStorage.removeItem('credimerge_token');
-          localStorage.removeItem('credimerge_user');
+          storage.removeItem('credimerge_token');
+          storage.removeItem('credimerge_user');
           setToken(null);
           setUser(null);
         })
@@ -82,11 +95,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = (userData: User, authToken: string) => {
-    setUser(userData);
+  const login = (userData: User, authToken: string, rememberMe = true) => {
+    const normalizedUser = {
+      ...userData,
+      user_id: userData.user_id || userData.userId || 'USER',
+    };
+    setUser(normalizedUser);
     setToken(authToken);
-    localStorage.setItem('credimerge_token', authToken);
-    localStorage.setItem('credimerge_user', JSON.stringify(userData));
+
+    if (rememberMe) {
+      localStorage.setItem('credimerge_token', authToken);
+      localStorage.setItem('credimerge_user', JSON.stringify(normalizedUser));
+      sessionStorage.removeItem('credimerge_token');
+      sessionStorage.removeItem('credimerge_user');
+    } else {
+      sessionStorage.setItem('credimerge_token', authToken);
+      sessionStorage.setItem('credimerge_user', JSON.stringify(normalizedUser));
+      localStorage.removeItem('credimerge_token');
+      localStorage.removeItem('credimerge_user');
+    }
   };
 
   const logout = () => {
@@ -94,11 +121,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     localStorage.removeItem('credimerge_token');
     localStorage.removeItem('credimerge_user');
+    sessionStorage.removeItem('credimerge_token');
+    sessionStorage.removeItem('credimerge_user');
   };
 
   const updateUser = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem('credimerge_user', JSON.stringify(userData));
+    const normalizedUser = {
+      ...userData,
+      user_id: userData.user_id || userData.userId || 'USER',
+    };
+    setUser(normalizedUser);
+    if (localStorage.getItem('credimerge_token')) {
+      localStorage.setItem('credimerge_user', JSON.stringify(normalizedUser));
+    } else {
+      sessionStorage.setItem('credimerge_user', JSON.stringify(normalizedUser));
+    }
   };
 
   const refreshUser = async () => {

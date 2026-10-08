@@ -3,7 +3,16 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import { authenticate, AuthRequest } from './middleware/auth';
-import { changePassword, login, requestPasswordReset, resetPassword } from './services/authService';
+import {
+  changePassword,
+  login,
+  requestPasswordReset,
+  resetPassword,
+  registerUser,
+  verifyEmailCode,
+  resendVerificationCode,
+  googleLogin,
+} from './services/authService';
 import { calculateEmi, totalInterest, buildAmortizationTable, aggregateLoans } from './services/emiService';
 import {
   getUserProfile,
@@ -101,8 +110,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   }
 
   try {
-    const message = await requestPasswordReset(email);
-    return res.json({ message });
+    const result = await requestPasswordReset(email);
+    return res.json(typeof result === 'string' ? { message: result } : result);
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (message === 'Enter a valid email address.') {
@@ -130,6 +139,62 @@ app.post('/api/auth/reset-password', async (req, res) => {
     const message = error instanceof Error ? error.message : 'Unable to reset password.';
     console.error('Password reset failed:', error);
     return res.status(400).json({ error: message });
+  }
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, password, fullName, workerType } = req.body || {};
+    if (!email || !password || !fullName) {
+      return res.status(400).json({ error: 'Full name, email, and password are required.' });
+    }
+    const result = await registerUser({ email, password, fullName, workerType });
+    return res.status(201).json(result);
+  } catch (error: any) {
+    console.error('Registration failed:', error);
+    return res.status(400).json({ error: error.message || 'Registration failed.' });
+  }
+});
+
+app.post('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { email, code } = req.body || {};
+    if (!email || !code) {
+      return res.status(400).json({ error: 'Email and 6-digit verification code are required.' });
+    }
+    const result = await verifyEmailCode(email, code);
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Email verification failed:', error);
+    return res.status(400).json({ error: error.message || 'Verification failed.' });
+  }
+});
+
+app.post('/api/auth/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+    const result = await resendVerificationCode(email);
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Resend verification failed:', error);
+    return res.status(400).json({ error: error.message || 'Unable to resend code.' });
+  }
+});
+
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { email, name, picture, credential } = req.body || {};
+    if (!email) {
+      return res.status(400).json({ error: 'Google email is required.' });
+    }
+    const result = await googleLogin({ email, name, picture, credential });
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Google login failed:', error);
+    return res.status(400).json({ error: error.message || 'Google sign-in failed.' });
   }
 });
 

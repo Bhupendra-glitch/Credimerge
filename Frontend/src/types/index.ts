@@ -6,6 +6,8 @@ export interface User {
   phone?: string;
   profilePhoto?: string | null;
   createdAt?: unknown;
+  emailVerified?: boolean;
+  authProvider?: string;
   age: number;
   worker_type: string;
   monthly_income: number;

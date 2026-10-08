@@ -51,8 +51,8 @@ export default function ConsolidationSimulator({ loans, user }: Props) {
     extraMonthlyPayment: extraPayment,
   }), [entries, principal, consolidationAmount, rate, tenure, processingFee, foreclosureCharges, user.monthly_income, extraPayment]);
 
-  const updateLoan = (index: number, field: Field, value: string) => {
-    setEntries((current) => current.map((loan, loanIndex) => loanIndex === index ? { ...loan, [field]: numberValue(value) } : loan));
+  const updateLoan = (index: number, field: Field, value: number) => {
+    setEntries((current) => current.map((loan, loanIndex) => loanIndex === index ? { ...loan, [field]: value } : loan));
   };
 
   const updateType = (index: number, value: string) => {
@@ -132,8 +132,8 @@ export default function ConsolidationSimulator({ loans, user }: Props) {
   );
 }
 
-function NumberField({ label, value, onChange, prefix, suffix, disabled = false, step = '1' }: { label: string; value: number; onChange: (value: string) => void; prefix?: string; suffix?: string; disabled?: boolean; step?: string }) {
-  return <label className="block"><span className="text-[11px] text-slate-500 uppercase tracking-wider">{label}</span><div className="relative mt-1">{prefix && <span className="absolute left-2 top-2 text-slate-500 text-sm">{prefix}</span>}<input type="number" min="0" step={step} value={value || ''} onChange={(event) => onChange(event.target.value)} disabled={disabled} className={`field w-full ${prefix ? 'pl-6' : ''} ${suffix ? 'pr-9' : ''}`} />{suffix && <span className="absolute right-2 top-2 text-slate-500 text-xs">{suffix}</span>}</div></label>;
+function NumberField({ label, value, onChange, prefix, suffix, disabled = false, step = '1' }: { label: string; value: number; onChange: (value: number) => void; prefix?: string; suffix?: string; disabled?: boolean; step?: string }) {
+  return <label className="block"><span className="text-[11px] text-slate-500 uppercase tracking-wider">{label}</span><div className="relative mt-1">{prefix && <span className="absolute left-2 top-2 text-slate-500 text-sm">{prefix}</span>}<input type="number" min="0" step={step} value={value || ''} onChange={(event) => onChange(numberValue(event.target.value))} disabled={disabled} className={`field w-full ${prefix ? 'pl-6' : ''} ${suffix ? 'pr-9' : ''}`} />{suffix && <span className="absolute right-2 top-2 text-slate-500 text-xs">{suffix}</span>}</div></label>;
 }
 
 function ScenarioCard({ title, tone, scenario, fees = 0 }: { title: string; tone: 'slate' | 'cyan'; scenario: ReturnType<typeof compareConsolidation>['existing']; fees?: number }) {

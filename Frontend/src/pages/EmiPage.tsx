@@ -47,11 +47,11 @@ export default function EmiPage() {
     api.getLoans()
       .then((response) => {
         const loadedLoans = Array.isArray(response.data) ? response.data : [];
-        setLoans(loadedLoans.length ? loadedLoans : buildProfileLoanFallback(user));
+        setLoans(loadedLoans.length ? loadedLoans : (user ? buildProfileLoanFallback(user) : []));
       })
       .catch((error) => {
         console.error('Failed to load loans', error);
-        const fallbackLoans = buildProfileLoanFallback(user);
+        const fallbackLoans = user ? buildProfileLoanFallback(user) : [];
         setLoans(fallbackLoans);
         setLoansError(
           fallbackLoans.length
@@ -60,7 +60,7 @@ export default function EmiPage() {
         );
       })
       .finally(() => setLoansLoading(false));
-  }, []);
+  }, [user]);
 
   if (!user) return null;
 

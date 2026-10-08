@@ -92,6 +92,74 @@ function getDemoLoans(userId: string): LoanRecord[] {
   }));
 }
 
+// Local in-memory store for development/offline fallback
+const localUsers = new Map<string, Record<string, any>>();
+const localVerificationCodes = new Map<string, { code: string; expiresAt: number }>();
+const localResetTokens = new Map<string, { userId: string; expiresAt: number }>();
+
+export async function createOrUpdateUser(userData: Record<string, any>) {
+  const userId = userData.userId || userData.user_id;
+  if (!userId) throw new Error('userId is required');
+
+  localUsers.set(String(userId).toUpperCase(), { ...userData });
+  if (userData.email) {
+    localUsers.set(String(userData.email).toLowerCase(), { ...userData });
+  }
+
+  try {
+    const db = getDb();
+    await db.collection('users').doc(String(userId).toUpperCase()).set(userData, { merge: true });
+  } catch (error) {
+    console.warn('Firestore write failed, saved to local cache:', error instanceof Error ? error.message : error);
+  }
+
+  return userData;
+}
+
+export async function storeEmailVerificationCode(email: string, code: string, expiresAt: Date) {
+  const normalizedEmail = email.trim().toLowerCase();
+  localVerificationCodes.set(normalizedEmail, { code, expiresAt: expiresAt.getTime() });
+
+  try {
+    const db = getDb();
+    await db.collection('verificationCodes').doc(normalizedEmail).set({
+      code,
+      expiresAt: Timestamp.fromDate(expiresAt),
+      createdAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.warn('Firestore verificationCode store failed, saved to local cache:', error instanceof Error ? error.message : error);
+  }
+}
+
+export async function verifyEmailCodeRecord(email: string, code: string): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const local = localVerificationCodes.get(normalizedEmail);
+  if (local) {
+    if (Date.now() <= local.expiresAt && local.code === code.trim()) {
+      localVerificationCodes.delete(normalizedEmail);
+      return true;
+    }
+  }
+
+  try {
+    const db = getDb();
+    const doc = await db.collection('verificationCodes').doc(normalizedEmail).get();
+    if (doc.exists) {
+      const data = doc.data();
+      const expiryMillis = data?.expiresAt?.toMillis?.();
+      if (typeof expiryMillis === 'number' && Date.now() <= expiryMillis && data?.code === code.trim()) {
+        await doc.ref.delete();
+        return true;
+      }
+    }
+  } catch (error) {
+    console.warn('Firestore verification code check failed:', error instanceof Error ? error.message : error);
+  }
+
+  return false;
+}
+
 export async function getUserProfile(userId: string) {
   try {
     const snap = await getDb().collection('users').doc(userId).get();
@@ -102,7 +170,15 @@ export async function getUserProfile(userId: string) {
       return { userId: snap.id, ...data };
     }
   } catch (error) {
-    console.warn('Firestore unavailable; using development demo data:', error instanceof Error ? error.message : error);
+    console.warn('Firestore unavailable; using local cache or demo data:', error instanceof Error ? error.message : error);
+  }
+
+  const local = localUsers.get(userId.toUpperCase());
+  if (local) {
+    const data = { ...local };
+    delete data.passwordHash;
+    delete data.password;
+    return { userId: userId.toUpperCase(), ...data };
   }
 
   const data = getDemoUser(userId);
@@ -127,7 +203,12 @@ export async function getUserAuthRecord(identifier: string) {
       if (snapshot.exists) return { userId: snapshot.id, ...(snapshot.data() || {}) } as Record<string, any>;
     }
   } catch (error) {
-    console.warn('Firestore unavailable; falling back to demo user if enabled:', error instanceof Error ? error.message : error);
+    console.warn('Firestore unavailable; falling back to local cache or demo data:', error instanceof Error ? error.message : error);
+  }
+
+  const local = localUsers.get(normalized.toLowerCase()) || localUsers.get(normalized.toUpperCase());
+  if (local) {
+    return { userId: String(local.user_id || local.userId || normalized).toUpperCase(), ...local };
   }
 
   const data = getDemoUser(normalized);
@@ -138,43 +219,94 @@ export async function updateUserProfile(
   userId: string,
   profile: { fullName: string; email: string; phone: string },
 ) {
-  const ref = getDb().collection('users').doc(userId);
-  const snap = await ref.get();
-  if (!snap.exists) return null;
+  const local = localUsers.get(userId.toUpperCase());
+  if (local) {
+    Object.assign(local, profile, { updatedAt: new Date().toISOString() });
+    if (profile.email) {
+      localUsers.set(profile.email.toLowerCase(), local);
+    }
+  }
 
-  const updatedAt = Timestamp.now();
-  await ref.update({ ...profile, updatedAt });
-  const updatedProfile = { userId: snap.id, ...(snap.data() || {}), ...profile, updatedAt } as Record<string, any>;
-  delete updatedProfile.passwordHash;
-  delete updatedProfile.password;
-  return updatedProfile;
+  try {
+    const ref = getDb().collection('users').doc(userId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const updatedAt = Timestamp.now();
+      await ref.update({ ...profile, updatedAt });
+      const updatedProfile = { userId: snap.id, ...(snap.data() || {}), ...profile, updatedAt } as Record<string, any>;
+      delete updatedProfile.passwordHash;
+      delete updatedProfile.password;
+      return updatedProfile;
+    }
+  } catch (error) {
+    console.warn('Firestore updateUserProfile error, local used:', error);
+  }
+
+  if (local) {
+    const safe = { ...local };
+    delete safe.passwordHash;
+    delete safe.password;
+    return safe;
+  }
+  return null;
 }
 
 export async function updateUserPhoto(userId: string, profilePhoto: string | null) {
-  const ref = getDb().collection('users').doc(userId);
-  const snap = await ref.get();
-  if (!snap.exists) return null;
+  const local = localUsers.get(userId.toUpperCase());
+  if (local) {
+    local.profilePhoto = profilePhoto;
+    local.updatedAt = new Date().toISOString();
+  }
 
-  const updatedAt = Timestamp.now();
-  await ref.update({ profilePhoto, updatedAt });
-  const updatedProfile = {
-    userId: snap.id,
-    ...(snap.data() || {}),
-    profilePhoto,
-    updatedAt,
-  } as Record<string, any>;
-  delete updatedProfile.passwordHash;
-  delete updatedProfile.password;
-  return updatedProfile;
+  try {
+    const ref = getDb().collection('users').doc(userId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      const updatedAt = Timestamp.now();
+      await ref.update({ profilePhoto, updatedAt });
+      const updatedProfile = {
+        userId: snap.id,
+        ...(snap.data() || {}),
+        profilePhoto,
+        updatedAt,
+      } as Record<string, any>;
+      delete updatedProfile.passwordHash;
+      delete updatedProfile.password;
+      return updatedProfile;
+    }
+  } catch (error) {
+    console.warn('Firestore updateUserPhoto error, local used:', error);
+  }
+
+  if (local) {
+    const safe = { ...local };
+    delete safe.passwordHash;
+    delete safe.password;
+    return safe;
+  }
+  return null;
 }
 
 export async function updateUserPassword(userId: string, passwordHash: string) {
-  const ref = getDb().collection('users').doc(userId);
-  const snap = await ref.get();
-  if (!snap.exists) return false;
+  const local = localUsers.get(userId.toUpperCase());
+  if (local) {
+    local.passwordHash = passwordHash;
+    local.password = null;
+    local.updatedAt = new Date().toISOString();
+  }
 
-  await ref.update({ passwordHash, password: null, updatedAt: Timestamp.now() });
-  return true;
+  try {
+    const ref = getDb().collection('users').doc(userId);
+    const snap = await ref.get();
+    if (snap.exists) {
+      await ref.update({ passwordHash, password: null, updatedAt: Timestamp.now() });
+      return true;
+    }
+  } catch (error) {
+    console.warn('Firestore updateUserPassword error:', error);
+  }
+
+  return !!local;
 }
 
 export async function createPasswordResetToken(
@@ -182,44 +314,62 @@ export async function createPasswordResetToken(
   token: string,
   expiresAt: Date,
 ) {
-  const tokenRef = getDb().collection('passwordResetTokens').doc(token);
-  await tokenRef.create({
-    userId,
-    expiresAt: Timestamp.fromDate(expiresAt),
-    createdAt: Timestamp.now(),
-  });
+  localResetTokens.set(token, { userId, expiresAt: expiresAt.getTime() });
+
+  try {
+    const tokenRef = getDb().collection('passwordResetTokens').doc(token);
+    await tokenRef.create({
+      userId,
+      expiresAt: Timestamp.fromDate(expiresAt),
+      createdAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.warn('Firestore reset token write failed, saved to local store:', error instanceof Error ? error.message : error);
+  }
 }
 
 export async function consumePasswordResetToken(token: string, passwordHash: string) {
-  const db = getDb();
-  const tokenRef = db.collection('passwordResetTokens').doc(token);
-  return db.runTransaction(async (transaction) => {
-    const tokenSnapshot = await transaction.get(tokenRef);
-    if (!tokenSnapshot.exists) return false;
-
-    const reset = tokenSnapshot.data();
-    const expiryMillis = reset?.expiresAt?.toMillis?.();
-    const userId = typeof reset?.userId === 'string' ? reset.userId : '';
-    if (!userId || typeof expiryMillis !== 'number' || expiryMillis <= Date.now()) {
-      transaction.delete(tokenRef);
-      return false;
-    }
-
-    const userRef = db.collection('users').doc(userId);
-    const userSnapshot = await transaction.get(userRef);
-    if (!userSnapshot.exists) {
-      transaction.delete(tokenRef);
-      return false;
-    }
-
-    transaction.update(userRef, {
-      passwordHash,
-      password: null,
-      updatedAt: Timestamp.now(),
-    });
-    transaction.delete(tokenRef);
+  const local = localResetTokens.get(token);
+  if (local && Date.now() <= local.expiresAt) {
+    localResetTokens.delete(token);
+    await updateUserPassword(local.userId, passwordHash);
     return true;
-  });
+  }
+
+  try {
+    const db = getDb();
+    const tokenRef = db.collection('passwordResetTokens').doc(token);
+    return await db.runTransaction(async (transaction) => {
+      const tokenSnapshot = await transaction.get(tokenRef);
+      if (!tokenSnapshot.exists) return false;
+
+      const reset = tokenSnapshot.data();
+      const expiryMillis = reset?.expiresAt?.toMillis?.();
+      const userId = typeof reset?.userId === 'string' ? reset.userId : '';
+      if (!userId || typeof expiryMillis !== 'number' || expiryMillis <= Date.now()) {
+        transaction.delete(tokenRef);
+        return false;
+      }
+
+      const userRef = db.collection('users').doc(userId);
+      const userSnapshot = await transaction.get(userRef);
+      if (!userSnapshot.exists) {
+        transaction.delete(tokenRef);
+        return false;
+      }
+
+      transaction.update(userRef, {
+        passwordHash,
+        password: null,
+        updatedAt: Timestamp.now(),
+      });
+      transaction.delete(tokenRef);
+      return true;
+    });
+  } catch (error) {
+    console.warn('Firestore consumePasswordResetToken error:', error);
+    return false;
+  }
 }
 
 export async function listLoans(userId: string): Promise<LoanRecord[]> {
