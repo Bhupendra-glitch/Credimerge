@@ -17,3 +17,9 @@ services:
         value: "true"
       - key: GEMINI_API_KEY
         sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: credimerge
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false

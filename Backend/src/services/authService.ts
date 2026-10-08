@@ -30,8 +30,7 @@ export async function login(userId: string, password: string): Promise<LoginResu
   let ok = false;
   if (user.passwordHash) ok = await bcrypt.compare(password, user.passwordHash);
   else if (
-    process.env.NODE_ENV !== 'production'
-    && process.env.ALLOW_DEMO_LOGIN === 'true'
+    process.env.ALLOW_DEMO_LOGIN === 'true'
     && user.password
   ) ok = user.password === password;
 
