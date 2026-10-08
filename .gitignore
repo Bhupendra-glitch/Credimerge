@@ -3,4 +3,4 @@ dist/
 .env
 .env.*
 !.env.example
-Backend/credentials/firebase-service-account.json
+Backend/credentials/*.json

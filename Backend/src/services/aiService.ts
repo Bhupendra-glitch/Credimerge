@@ -19,8 +19,8 @@ export async function generateFinancialAdvice(userId: string, message: string): 
     throw new Error('Gemini API key is not configured. Set GEMINI_API_KEY or GOOGLE_API_KEY in the backend environment.');
   }
 
-  if (!/^AIza[0-9A-Za-z\-_]{35}$/.test(apiKey.trim())) {
-    throw new Error('Invalid Gemini API key format. Generate a Google AI Studio API key (it usually starts with AIza...) and set it in GEMINI_API_KEY.');
+  if (apiKey.trim().length < 10) {
+    throw new Error('Invalid Gemini API key format. Set a valid Google AI Studio API key in GEMINI_API_KEY.');
   }
 
   const user = (await getUserProfile(userId)) as UserProfileSummary | null;
@@ -48,8 +48,9 @@ export async function generateFinancialAdvice(userId: string, message: string): 
     ],
   };
 
+  const modelName = process.env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash';
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`,
     {
       method: 'POST',
       headers: {

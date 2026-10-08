@@ -72,6 +72,7 @@ app.post(['/api/login', '/api/auth/login'], async (req, res) => {
       'firebase service-account file',
       'default credentials',
       'could not load the default credentials',
+      'unable to detect a project id',
     ].some((indicator) => detail.includes(indicator));
     console.error('Login failed:', error);
     return res.status(503).json({

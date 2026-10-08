@@ -14,7 +14,7 @@ export async function askGemini(message: string, context: AIContext = {}): Promi
   }
 
   const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
-    model: process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash',
+    model: process.env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash',
   });
 
   const prompt = `
