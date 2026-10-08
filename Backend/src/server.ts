@@ -31,12 +31,23 @@ const upload = multer({
 
 const origins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
   .split(',')
-  .map((value) => value.trim())
+  .map((value) => {
+    const trimmed = value.trim();
+    try {
+      return new URL(trimmed).origin;
+    } catch {
+      return trimmed.replace(/\/+$/, '');
+    }
+  })
   .filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || process.env.NODE_ENV !== 'production' || origins.includes(origin)) {
+    if (!origin || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    const normalized = origin.replace(/\/+$/, '');
+    if (origins.includes(normalized) || origins.some((o) => normalized.startsWith(o))) {
       return callback(null, true);
     }
     return callback(new Error('Origin is not allowed by CORS'));
