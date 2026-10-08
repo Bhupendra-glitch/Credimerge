@@ -1,3 +1,4 @@
+import { useState } from 'react';
 interface SectionCardProps {
   icon: string;
   title: string;
@@ -16,19 +17,22 @@ export default function SectionCard({
   onOpen,
 }: SectionCardProps) {
   const isGreen = accent === 'green';
-
+  const [hovered, setHovered] = useState(false);
+  
   return (
     <div
-      className={`
-        group relative overflow-hidden
-        bg-slate-950/60
-        border
-        ${isGreen ? 'border-emerald-400/20 hover:border-emerald-400/50' : 'border-cyan-400/20 hover:border-cyan-400/50'}
-        p-8
-        flex flex-col
-        transition-all duration-500
-        hover:-translate-y-1
-      `}
+          className={`
+          group relative overflow-hidden cm-interactive
+          bg-slate-950/60
+          border
+          ${isGreen ? 'border-emerald-400/20 hover:border-emerald-400/50' : 'border-cyan-400/20 hover:border-cyan-400/50'}
+          p-8
+          flex flex-col
+         transition-all duration-500
+         hover:-translate-y-1
+      ` }
+       onMouseEnter={() => setHovered(true)}
+       onMouseLeave={() => setHovered(false)}
     >
       {/* Ambient glow */}
       <div
@@ -39,6 +43,11 @@ export default function SectionCard({
           transition-opacity duration-500
           ${isGreen ? 'bg-emerald-400' : 'bg-cyan-400'}
         `}
+         style={{
+            transform: hovered
+            ? 'translate3d(-12px, -12px, 0) scale(1.15)'
+            : 'translate3d(0, 0, 0)',
+          }}
       />
 
       {/* Header */}
@@ -51,15 +60,17 @@ export default function SectionCard({
           >
             {isGreen ? 'Debt / 01' : 'Credit / 02'}
           </div>
+              
 
-          <h2 className="text-2xl font-bold text-white">
-            {title}
+          <h2 className="text-2xl md:text-3xl font-black tracking-[-0.03em] text-white transition-transform duration-500 group-hover:translate-x-1">
+              {title}
           </h2>
         </div>
+        
 
         <div
           className={`
-            text-xl transition-transform duration-300
+            text-2xl transition-all duration-500 group-hover:translate-x-2 group-hover:-translate-y-2 group-hover:scale-110
             group-hover:translate-x-1 group-hover:-translate-y-1
             ${isGreen ? 'text-emerald-400' : 'text-cyan-400'}
           `}
@@ -79,9 +90,9 @@ export default function SectionCard({
               {item.label}
             </span>
 
-            <span className="data-mono text-sm md:text-base font-semibold text-slate-200">
-              {item.value}
-            </span>
+            <span className="data-mono text-sm md:text-base font-semibold text-slate-200 transition-all duration-500 group-hover:text-white group-hover:tracking-wide">
+                {item.value}
+             </span>
           </div>
         ))}
       </div>

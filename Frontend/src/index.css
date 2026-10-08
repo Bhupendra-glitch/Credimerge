@@ -670,3 +670,156 @@ button:active {
     opacity: 0.65;
   }
 }
+
+/* =========================================================
+   CREDIMERGE — GLOBAL DYNAMIC MOTION SYSTEM
+   ========================================================= */
+
+@keyframes cm-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+@keyframes cm-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes cm-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes cm-scan {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes cm-data-flow {
+  0% {
+    transform: translateX(-15%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(115%);
+    opacity: 0;
+  }
+}
+
+@keyframes cm-border-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(87, 227, 137, 0);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(87, 227, 137, 0.08);
+  }
+}
+
+.cm-float {
+  animation: cm-float 5s ease-in-out infinite;
+}
+
+.cm-pulse {
+  animation: cm-pulse 2.5s ease-in-out infinite;
+}
+
+.cm-shimmer {
+  background-size: 200% 100%;
+  animation: cm-shimmer 4s linear infinite;
+}
+
+.cm-scan {
+  position: relative;
+  overflow: hidden;
+}
+
+.cm-scan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  top: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(87, 227, 137, 0.55),
+    transparent
+  );
+  animation: cm-scan 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.cm-data-flow {
+  animation: cm-data-flow 6s ease-in-out infinite;
+}
+
+.cm-border-glow {
+  animation: cm-border-glow 4s ease-in-out infinite;
+}
+
+.cm-interactive {
+  transition:
+    transform 350ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 350ms ease,
+    box-shadow 350ms ease,
+    background-color 350ms ease;
+}
+
+.cm-interactive:hover {
+  transform: translateY(-4px);
+}
+
+.cm-interactive:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-float,
+  .cm-pulse,
+  .cm-shimmer,
+  .cm-scan::after,
+  .cm-data-flow,
+  .cm-border-glow {
+    animation: none !important;
+  }
+
+  .cm-interactive {
+    transition: none !important;
+  }
+}

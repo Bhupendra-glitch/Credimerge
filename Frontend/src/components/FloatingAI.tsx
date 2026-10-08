@@ -67,12 +67,12 @@ export default function FloatingAI() {
       {/* Floating button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 group"
+        className="fixed bottom-6 right-6 z-50 group....cm-pulse"
         title="CrediMerge AI"
       >
         <span className="absolute inset-0 rounded-full bg-emerald-400/20 blur-xl animate-pulse" />
 
-        <span className="relative flex h-14 w-14 items-center justify-center border border-emerald-400/50 bg-[#07100b]/95 text-emerald-400 shadow-2xl transition-all duration-300 group-hover:scale-110 group-hover:border-emerald-300 group-hover:bg-emerald-400 group-hover:text-black">
+        <span className="relative flex h-14 w-14 items-center justify-center border border-emerald-400/50 bg-[#07100b]/95 text-emerald-400 shadow-2xl transition-all duration-300 group-hover:scale-110 group-hover:border-emerald-300 group-hover:bg-emerald-400 group-hover:text-black....cm-scan cm-border-glow">
           {open ? '×' : 'AI'}
         </span>
       </button>
