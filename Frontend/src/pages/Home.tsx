@@ -107,21 +107,21 @@ export default function Home() {
         {/* HERO */}
         <section className="relative min-h-[360px] flex items-center overflow-hidden border-b border-white/[0.06] mb-12">
 
-          <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-none cm-scan">
             <div className="absolute left-[-120px] top-1/2 -translate-y-1/2 w-[420px] h-[420px] bg-emerald-400/[0.08] blur-[130px]" />
             <div className="absolute right-[-80px] top-[-80px] w-[320px] h-[320px] bg-cyan-400/[0.06] blur-[120px]" />
           </div>
 
-          <div className="relative z-10 max-w-4xl">
+          <div className="relative z-10 max-w-4xl cm-float">
 
             <div className="data-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400/70 mb-6">
               CREDIMERGE / FINANCIAL INTELLIGENCE
             </div>
 
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-[-0.06em] leading-[0.9] text-white">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-[-0.06em] leading-[0.9] text-white...cm-interactive">
               Your money.
               <br />
-              <span className="text-emerald-400">
+              <span className="text-emerald-400...cm-interactive">
                 Made visible.
               </span>
             </h1>
@@ -149,25 +149,25 @@ export default function Home() {
           </div>
 
           {/* DATA MARKERS */}
-          <div className="hidden lg:block absolute right-0 bottom-8 text-right">
+          <div className="hidden lg:block absolute right-0 bottom-8 text-right cm-float">
             <div className="data-mono text-[9px] uppercase tracking-[0.2em] text-slate-600">
               LIVE FINANCIAL MODEL
             </div>
 
-            <div className="data-mono text-3xl font-bold text-slate-300 mt-2">
-              {user.cashflow_score}
-              <span className="text-emerald-400 text-sm ml-2">
+            <div className="data-mono text-3xl font-bold text-slate-300 mt-2 transition-all duration-500 hover:text-white hover:scale-105">
+               {user.cashflow_score}
+            <span className="text-emerald-400 text-sm ml-2 cm-pulse">
                 / 100
-              </span>
+            </span>
             </div>
-
             <div className="mt-3 h-px w-40 bg-gradient-to-r from-transparent via-emerald-400/50 to-emerald-400" />
           </div>
         </section>
 
         {/* CORE SIMULATOR */}
-        <ConsolidationSimulator loans={loans} user={user} />
-
+        <div className="cm-scan cm-border-glow">
+            <ConsolidationSimulator loans={loans} user={user} />
+        </div>
         {/* DASHBOARD */}
         <section className="mt-20">
 
@@ -192,29 +192,32 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <SectionCard
-              icon="₹"
-              title="EMI Management"
-              accent="green"
-              items={emiItems}
-              ctaLabel="Open EMI Management →"
-              onOpen={() => navigate('/emi')}
-            />
-
-            <SectionCard
-              icon="◎"
-              title="Credit Health"
-              accent="blue"
-              items={creditItems}
-              ctaLabel="Open Credit Health →"
-              onOpen={() => navigate('/credit-health')}
-            />
+              <div className="cm-interactive cm-border-glow cm-scan">
+                <SectionCard
+                      icon="₹"
+                       title="EMI Management"
+                      accent="green"
+                       items={emiItems}
+                      ctaLabel="Open EMI Management →"
+                      onOpen={() => navigate('/emi')}
+                        />
           </div>
+
+  <div className="cm-interactive cm-border-glow">
+    <SectionCard
+      icon="◎"
+      title="Credit Health"
+      accent="blue"
+      items={creditItems}
+      ctaLabel="Open Credit Health →"
+      onOpen={() => navigate('/credit-health')}
+    />
+  </div>
+</div>
         </section>
 
         {/* FINANCIAL SNAPSHOT */}
-        <section className="mt-12 border border-white/[0.07] bg-slate-950/60 p-6 md:p-8 relative overflow-hidden">
-
+        <section className="cm-scan cm-border-glow cm-interactive mt-12 border border-white/[0.07] bg-slate-950/60 p-6 md:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/[0.04] blur-[100px] pointer-events-none" />
 
           <div className="relative">
