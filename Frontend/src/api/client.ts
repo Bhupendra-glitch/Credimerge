@@ -191,6 +191,33 @@ export const api = {
 
   computeTeeRisk: () =>
     client.post('/api/tee/compute-risk'),
+
+  // ElevenLabs Voice Assistant
+  getVoiceStatus: () => client.get('/api/voice/status'),
+
+  transcribeAudio: (audioBlob: Blob) => {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'mic-recording.webm');
+    return client.post('/api/voice/stt', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  synthesizeSpeech: (text: string) =>
+    client.post('/api/voice/tts', { text }),
+
+  voiceChat: (payload: { audioBlob?: Blob; text?: string }) => {
+    const formData = new FormData();
+    if (payload.audioBlob) {
+      formData.append('audio', payload.audioBlob, 'voice-query.webm');
+    }
+    if (payload.text) {
+      formData.append('text', payload.text);
+    }
+    return client.post('/api/voice/chat', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 export default client;

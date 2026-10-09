@@ -54,6 +54,11 @@ import {
 import { analyzeTransactionInsights } from './services/transactionAdvisorService';
 import { memoryCache } from './services/cacheService';
 import { standardRateLimiter, strictRateLimiter } from './middleware/rateLimiter';
+import {
+  transcribeWithElevenLabs,
+  synthesizeWithElevenLabs,
+  isElevenLabsAvailable,
+} from './services/elevenLabsService';
 
 dotenv.config();
 
@@ -979,6 +984,161 @@ app.post('/api/tee/compute-risk', authenticate, async (req: AuthRequest, res) =>
   } catch (err: any) {
     console.error('Confidential computation error:', err);
     return res.status(500).json({ error: err.message || 'Confidential computation failure' });
+  }
+});
+
+// ==========================================
+// 5. ELEVENLABS VOICE ASSISTANT ENDPOINTS
+// ==========================================
+
+// GET /api/voice/status - Check voice configuration status
+app.get('/api/voice/status', (_req, res) => {
+  return res.json({
+    elevenLabsConfigured: isElevenLabsAvailable(),
+    voiceId: process.env.ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
+    modelId: process.env.ELEVENLABS_MODEL_ID || 'eleven_multilingual_v2',
+    features: {
+      speechToText: true,
+      textToSpeech: true,
+      browserFallback: true,
+    },
+  });
+});
+
+// POST /api/voice/stt - Transcribe microphone audio using ElevenLabs Scribe
+app.post('/api/voice/stt', authenticate, upload.single('audio'), async (req: AuthRequest, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: 'Audio file is required for transcription' });
+    }
+
+    const result = await transcribeWithElevenLabs(
+      req.file.buffer,
+      req.file.originalname || 'voice.webm',
+      req.file.mimetype || 'audio/webm'
+    );
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error('STT endpoint error:', err);
+    return res.status(500).json({ error: err.message || 'Speech-to-text transcription failed' });
+  }
+});
+
+// POST /api/voice/tts - Synthesize text to speech using ElevenLabs
+app.post('/api/voice/tts', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { text, voiceId } = req.body || {};
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: 'text is required' });
+    }
+
+    const ttsResult = await synthesizeWithElevenLabs(text, voiceId);
+    if (!ttsResult) {
+      return res.json({
+        fallback: true,
+        message: 'ElevenLabs TTS unavailable. Use browser speech synthesis.',
+      });
+    }
+
+    return res.json(ttsResult);
+  } catch (err: any) {
+    console.error('TTS endpoint error:', err);
+    return res.status(500).json({ error: err.message || 'Text-to-speech synthesis failed' });
+  }
+});
+
+// POST /api/voice/chat - End-to-end Voice Chat (Audio/Text in -> ElevenLabs STT -> AI Financial Intelligence -> TTS out)
+app.post('/api/voice/chat', authenticate, upload.single('audio'), async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    let questionText = (req.body?.text || '').trim();
+
+    // 1. If audio file was uploaded, transcribe with ElevenLabs Scribe
+    if (req.file && req.file.buffer) {
+      try {
+        const stt = await transcribeWithElevenLabs(
+          req.file.buffer,
+          req.file.originalname || 'query.webm',
+          req.file.mimetype || 'audio/webm'
+        );
+        questionText = stt.text;
+      } catch (sttErr: any) {
+        console.warn('ElevenLabs STT error in voice chat:', sttErr.message);
+        return res.status(422).json({
+          error: 'Could not transcribe speech. Please speak clearly or type your question.',
+        });
+      }
+    }
+
+    if (!questionText) {
+      return res.status(400).json({ error: 'No audio or text question received' });
+    }
+
+    // 2. Fetch user's financial profile & loans context for accurate answers
+    const [user, loans] = await Promise.all([
+      getUserProfile(userId),
+      listLoans(userId),
+    ]);
+
+    let creditHealth = null;
+    try {
+      creditHealth = await getLatestCreditReport(userId);
+    } catch {
+      // optional
+    }
+
+    const dashboard = {
+      monthlyIncome: (user as any)?.monthly_income,
+      monthlyEMI: (user as any)?.monthly_emi,
+      existingDebt: (user as any)?.existing_debt,
+      monthlyCashflow: (user as any)?.monthly_cashflow,
+      activeLoanCount: (user as any)?.active_loan_count,
+      cashflowScore: (user as any)?.cashflow_score,
+      riskBand: (user as any)?.risk_band,
+    };
+
+    // 3. Generate response using AI / financial intelligence
+    let reply = '';
+    try {
+      reply = await askGemini(questionText, {
+        user,
+        loans,
+        dashboard,
+        creditHealth,
+      });
+    } catch {
+      // Local financial intelligence fallback
+      const q = questionText.toLowerCase();
+      const emi = Number((user as any)?.monthly_emi || 0).toLocaleString('en-IN');
+      const debt = Number((user as any)?.existing_debt || 0).toLocaleString('en-IN');
+      const income = Number((user as any)?.monthly_income || 0).toLocaleString('en-IN');
+      const surplus = Number((user as any)?.monthly_cashflow || 0).toLocaleString('en-IN');
+
+      if (q.includes('emi')) {
+        reply = `Your total monthly EMI is ₹${emi}. Your available monthly cash flow surplus is ₹${surplus}.`;
+      } else if (q.includes('debt') || q.includes('loan')) {
+        reply = `You currently have ${loans.length} loans with total outstanding debt of ₹${debt}.`;
+      } else if (q.includes('income')) {
+        reply = `Your monthly income is ₹${income}, with an estimated surplus of ₹${surplus}.`;
+      } else {
+        reply = `Based on your profile, your monthly EMI is ₹${emi} and total debt is ₹${debt}. Consolidation can help reduce monthly payment pressure.`;
+      }
+    }
+
+    // 4. Synthesize voice with ElevenLabs (with graceful client fallback)
+    const ttsResult = await synthesizeWithElevenLabs(reply);
+
+    return res.json({
+      transcript: questionText,
+      reply,
+      audioBase64: ttsResult?.audioBase64 || null,
+      ttsEngine: ttsResult ? 'elevenlabs' : 'web_speech',
+      voiceId: ttsResult?.voiceId || null,
+    });
+  } catch (err: any) {
+    console.error('Voice chat error:', err);
+    return res.status(500).json({ error: err.message || 'Voice assistant error' });
   }
 });
 
