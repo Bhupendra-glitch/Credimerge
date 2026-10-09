@@ -7,6 +7,11 @@ import { User } from '../types';
 import PasswordStrengthMeter, { evaluatePassword } from '../components/PasswordStrengthMeter';
 import TermsPrivacyModal from '../components/TermsPrivacyModal';
 import GoogleAccountModal from '../components/GoogleAccountModal';
+import {
+  signInWithGooglePopup,
+  loginWithFirebase,
+  signupWithFirebase,
+} from '../config/firebase';
 
 type AuthMode = 'login' | 'register' | 'forgot' | 'verify';
 
@@ -170,6 +175,28 @@ export default function Login() {
     }
   };
 
+  const handleGoogleClick = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const result = await signInWithGooglePopup();
+      if (result?.user?.email) {
+        await handleGoogleAccountSelect({
+          email: result.user.email,
+          name: result.user.displayName || result.user.email.split('@')[0],
+          picture: result.user.photoURL || undefined,
+        });
+        return;
+      }
+      setShowGoogleModal(true);
+    } catch (err: any) {
+      console.warn('Firebase Google Auth popup error, falling back to account chooser:', err);
+      setShowGoogleModal(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // 2. Email + Password Sign-In Handler
   const handleLoginSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -207,6 +234,25 @@ export default function Login() {
       login(res.data.user, res.data.token, rememberMe);
       navigate('/home');
     } catch (err: any) {
+      // If backend login fails and input is an email, attempt Firebase Authentication
+      if (cleanIdentifier.includes('@')) {
+        try {
+          const fbRes = await loginWithFirebase(cleanIdentifier, loginPassword);
+          if (fbRes?.user?.email) {
+            const authRes = await api.googleAuth({
+              email: fbRes.user.email,
+              name: fbRes.user.displayName || fbRes.user.email.split('@')[0],
+              picture: fbRes.user.photoURL || undefined,
+            });
+            login(authRes.data.user, authRes.data.token, rememberMe);
+            navigate('/home');
+            return;
+          }
+        } catch (fbErr: any) {
+          console.warn('Firebase login attempt fallback error:', fbErr?.message);
+        }
+      }
+
       const message = err.response?.data?.error;
       setError(message || (err.response
         ? 'Login failed. Check your email/User ID and password.'
@@ -240,11 +286,20 @@ export default function Login() {
 
     setLoading(true);
     try {
+      // Sync with Firebase Auth
+      try {
+        await signupWithFirebase(registerEmail.trim(), registerPassword);
+      } catch (fbErr: any) {
+        console.warn('Firebase user creation note:', fbErr?.message);
+      }
+
       const res = await api.register({
         fullName: registerName.trim(),
         email: registerEmail.trim(),
         workerType: registerWorkerType,
         password: registerPassword,
+        confirmPassword: registerConfirmPassword,
+        confirmation: registerConfirmPassword,
       });
 
       setVerificationEmail(registerEmail.trim());
@@ -487,7 +542,7 @@ export default function Login() {
             <div className="mb-6">
               <button
                 type="button"
-                onClick={() => setShowGoogleModal(true)}
+                onClick={handleGoogleClick}
                 disabled={loading}
                 className="auth-social-btn w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-800 hover:border-slate-600 text-slate-100 font-semibold text-sm transition-all shadow-sm group disabled:opacity-50"
               >

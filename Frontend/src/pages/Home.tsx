@@ -6,16 +6,23 @@ import SectionCard from '../components/SectionCard';
 import FloatingAI from '../components/FloatingAI';
 import ConsolidationSimulator from '../components/ConsolidationSimulator';
 import NotificationSection from '../components/NotificationSection';
+import AddLoanModal from '../components/AddLoanModal';
 import { api, buildProfileLoanFallback } from '../api/client';
 import { Loan } from '../types';
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [showAddLoanModal, setShowAddLoanModal] = useState(false);
 
   const [loans, setLoans] = useState<Loan[]>(() =>
     user ? buildProfileLoanFallback(user) : []
   );
+
+  const handleLoanCreated = async (newLoan: Loan) => {
+    setLoans((prev) => [newLoan, ...prev.filter((l) => l.id !== newLoan.id)]);
+    await refreshUser();
+  };
 
   useEffect(() => {
     if (!user) {
@@ -187,8 +194,16 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="data-mono text-xs uppercase tracking-[0.15em] text-slate-600">
-              SYSTEM / ACTIVE
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowAddLoanModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 hover:border-emerald-500/60"
+              >
+                + Add Loan
+              </button>
+              <div className="data-mono text-xs uppercase tracking-[0.15em] text-slate-600">
+                SYSTEM / ACTIVE
+              </div>
             </div>
           </div>
 
@@ -284,6 +299,12 @@ export default function Home() {
         </div>
 
       </main>
+
+      <AddLoanModal
+        isOpen={showAddLoanModal}
+        onClose={() => setShowAddLoanModal(false)}
+        onLoanCreated={handleLoanCreated}
+      />
 
       <FloatingAI />
     </div>

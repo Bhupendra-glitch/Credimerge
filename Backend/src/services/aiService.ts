@@ -1,4 +1,4 @@
-import { getUserProfile } from './firestoreService';
+import { getUserProfile } from './supabaseService';
 
 type UserProfileSummary = {
   userId?: string;

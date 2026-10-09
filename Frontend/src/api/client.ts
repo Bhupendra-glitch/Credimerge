@@ -10,6 +10,12 @@ export const API_URL = (configuredApiUrl || (import.meta.env.PROD ? productionAp
   .replace(/\/$/, '');
 
 export function buildProfileLoanFallback(user: User): Loan[] {
+  // Only provide demo loan fallback for synthetic GIG demo accounts
+  const userId = String(user?.user_id || user?.userId || '');
+  if (!/^GIG10\d{2}$/i.test(userId)) {
+    return [];
+  }
+
   const debt = Number(user.existing_debt || 0);
   if (!Number.isFinite(debt) || debt <= 0) return [];
 

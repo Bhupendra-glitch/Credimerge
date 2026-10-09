@@ -145,17 +145,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const response = await api.getMe();
-      const nextUser = response.data as User;
+      const rawUser = response.data as Record<string, any>;
+      const nextUser = {
+        ...rawUser,
+        user_id: rawUser.user_id || rawUser.userId,
+      } as User;
 
       if (!isValidUser(nextUser)) {
-        logout();
+        console.warn('refreshUser received incomplete user payload:', nextUser);
         return;
       }
 
       setUser(nextUser);
-      localStorage.setItem('credimerge_user', JSON.stringify(nextUser));
-    } catch {
-      logout();
+      if (localStorage.getItem('credimerge_token')) {
+        localStorage.setItem('credimerge_user', JSON.stringify(nextUser));
+      } else {
+        sessionStorage.setItem('credimerge_user', JSON.stringify(nextUser));
+      }
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        logout();
+      } else {
+        console.warn('Failed to refresh user profile:', err);
+      }
     }
   };
 

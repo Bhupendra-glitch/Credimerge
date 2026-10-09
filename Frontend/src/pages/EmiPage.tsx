@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import Header from '../components/Header';
 import MetricCard from '../components/MetricCard';
 import FloatingAI from '../components/FloatingAI';
+import AddLoanModal from '../components/AddLoanModal';
 import { api, buildProfileLoanFallback } from '../api/client';
 import { Loan } from '../types';
 
@@ -42,6 +43,23 @@ export default function EmiPage() {
   const [loansError, setLoansError] = useState('');
   const [loanSearch, setLoanSearch] = useState('');
   const [loanSort, setLoanSort] = useState<LoanSort>('outstanding');
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const handleLoanCreated = (newLoan: Loan) => {
+    setLoans((prev) => [newLoan, ...prev.filter((l) => l.id !== newLoan.id)]);
+  };
+
+  const handleDeleteLoan = async (loanId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!window.confirm('Are you sure you want to remove this loan?')) return;
+    try {
+      await api.deleteLoan(loanId);
+      setLoans((prev) => prev.filter((l) => l.id !== loanId));
+    } catch (err) {
+      console.error('Failed to delete loan', err);
+      alert('Unable to delete loan. Please try again.');
+    }
+  };
 
   useEffect(() => {
     api.getLoans()
@@ -56,7 +74,7 @@ export default function EmiPage() {
         setLoansError(
           fallbackLoans.length
             ? ''
-            : 'Unable to load your current GigCred loan data.'
+            : 'Unable to load your loan data.'
         );
       })
       .finally(() => setLoansLoading(false));
@@ -171,7 +189,16 @@ export default function EmiPage() {
         <section className="mb-8">
           <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-slate-100">Your Loans</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-slate-100">Your Loans</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-3.5 py-1.5 text-xs font-bold text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 transition"
+                >
+                  <span className="text-base leading-none">+</span> Add Loan
+                </button>
+              </div>
               <p className="mt-1 text-sm text-slate-500">Search by loan type or lender, or sort by balance, EMI, and rate.</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-[minmax(220px,1fr)_190px]">
@@ -205,18 +232,20 @@ export default function EmiPage() {
           {!loansLoading && loansError && (
             <p role="alert" className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{loansError}</p>
           )}
-          {loans.some((loan) => loan.lender === 'GigCred profile estimate') && (
-            <div className="mb-4 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm leading-relaxed text-cyan-100">
-              Estimated loan categories are based on your profile balances. Rates and tenures are illustrative where loan-level details are unavailable.
-            </div>
-          )}
           {!loansLoading && loans.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 px-6 py-10 text-center">
-              <div className="text-3xl" aria-hidden="true">◇</div>
-              <h3 className="mt-3 font-semibold text-slate-200">No loans to show yet</h3>
-              <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                Current loan details are not available for this account. Your summary will appear here when loan data is connected.
+            <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/40 px-6 py-12 text-center">
+              <div className="text-4xl mb-3" aria-hidden="true">💳</div>
+              <h3 className="font-semibold text-lg text-slate-200">No active loans added yet</h3>
+              <p className="mx-auto mt-1 mb-6 max-w-md text-sm text-slate-400">
+                Add your personal, vehicle, credit card, or BNPL loans to manage repayments and calculate EMI and debt consolidation.
               </p>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-500/20 hover:brightness-110 transition"
+              >
+                <span>+</span> Add Your First Loan
+              </button>
             </div>
           )}
           {!loansLoading && loans.length > 0 && filteredLoans.length === 0 && (
@@ -252,12 +281,22 @@ export default function EmiPage() {
                   <Row label="Interest rate" value={`${loan.rate}% p.a.`} highlight={loan.rate > 30} />
                 </div>
 
-                <button
-                  onClick={() => openDetails(loan)}
-                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
-                >
-                  View repayment schedule <span aria-hidden="true">→</span>
-                </button>
+                <div className="flex items-center gap-2 mt-4">
+                  <button
+                    onClick={() => openDetails(loan)}
+                    className="flex-1 min-h-11 flex items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 px-4 text-sm font-semibold text-slate-200 transition hover:border-cyan-400/40 hover:bg-cyan-400/10 hover:text-cyan-100 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+                  >
+                    View repayment schedule <span aria-hidden="true">→</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteLoan(loan.id, e)}
+                    title="Delete this loan"
+                    className="min-h-11 px-3.5 flex items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/50 transition text-sm"
+                  >
+                    🗑
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -444,6 +483,12 @@ export default function EmiPage() {
           </div>
         </div>
       )}
+
+      <AddLoanModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onLoanCreated={handleLoanCreated}
+      />
 
       <FloatingAI />
     </div>

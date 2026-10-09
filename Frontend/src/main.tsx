@@ -5,7 +5,11 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { initAnalytics } from './config/firebase';
 import './index.css';
+
+// Initialize Firebase Analytics
+initAnalytics().catch(() => {});
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
 	state: { error: Error | null } = { error: null };

@@ -25,7 +25,7 @@ import {
   deleteLoan,
   saveCreditReport,
   getLatestCreditReport,
-} from './services/firestoreService';
+} from './services/supabaseService';
 import { buildStatementProfile } from './services/statementService';
 import { askGemini } from './services/geminiService';
 
@@ -68,7 +68,7 @@ app.get('/', (_req, res) => {
   res.json({ status: 'ok', service: 'CrediMerge API', version: '2.0' });
 });
 
-app.get('/health', (_req, res) => {
+app.get(['/health', '/api/health'], (_req, res) => {
   res.json({ status: 'healthy' });
 });
 
@@ -87,17 +87,17 @@ app.post(['/api/login', '/api/auth/login'], async (req, res) => {
     }
 
     const detail = error instanceof Error ? error.message.toLowerCase() : '';
-    const firebaseConfigError = [
-      'firebase admin is not configured',
-      'firebase service-account file',
+    const dbConfigError = [
+      'firebase',
+      'supabase',
+      'not configured',
       'default credentials',
-      'could not load the default credentials',
       'unable to detect a project id',
     ].some((indicator) => detail.includes(indicator));
     console.error('Login failed:', error);
     return res.status(503).json({
-      error: firebaseConfigError
-        ? 'Firebase authentication is not configured. Add Backend/credentials/firebase-service-account.json and restart the backend.'
+      error: dbConfigError
+        ? 'Database is not configured yet. Configure Supabase credentials in Backend/.env and restart the backend.'
         : 'Login is temporarily unavailable. Please try again.',
     });
   }
@@ -156,7 +156,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/verify-email', async (req, res) => {
+app.post(['/api/auth/verify-email', '/api/auth/verify-code'], async (req, res) => {
   try {
     const { email, code } = req.body || {};
     if (!email || !code) {

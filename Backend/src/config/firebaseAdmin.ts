@@ -21,15 +21,8 @@ export function getFirebaseApp(): admin.app.App {
   );
   const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
     || (fs.existsSync(defaultServiceAccountPath) ? defaultServiceAccountPath : undefined);
-  const serviceAccountValues = [projectId, clientEmail, privateKey];
-  const hasServiceAccountConfig = serviceAccountValues.some(Boolean);
+  const hasInlineServiceAccount = Boolean(clientEmail && privateKey);
   let credential: admin.credential.Credential;
-
-  if (serviceAccountPath && hasServiceAccountConfig) {
-    throw new Error(
-      'Configure either GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY, not both.',
-    );
-  }
 
   if (serviceAccountPath) {
     const resolvedPath = path.resolve(process.cwd(), serviceAccountPath);
@@ -58,8 +51,8 @@ export function getFirebaseApp(): admin.app.App {
       clientEmail: serviceAccount.client_email,
       privateKey: serviceAccount.private_key,
     });
-  } else if (hasServiceAccountConfig) {
-    if (serviceAccountValues.some((value) => !value)) {
+  } else if (hasInlineServiceAccount) {
+    if (!projectId || !clientEmail || !privateKey) {
       throw new Error('FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY must all be configured');
     }
     credential = admin.credential.cert({

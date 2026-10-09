@@ -8,7 +8,7 @@ async function askGemini(message, context = {}) {
         throw new Error('Gemini API key is not configured. Set GEMINI_API_KEY in the backend environment.');
     }
     const model = new generative_ai_1.GoogleGenerativeAI(apiKey).getGenerativeModel({
-        model: process.env.GEMINI_MODEL?.trim() || 'gemini-2.5-flash',
+        model: process.env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash',
     });
     const prompt = `
 You are the CrediMerge AI Assistant.

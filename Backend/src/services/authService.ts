@@ -8,7 +8,7 @@ import {
   createPasswordResetToken,
   getUserAuthRecord,
   updateUserPassword,
-} from './firestoreService';
+} from './supabaseService';
 
 dotenv.config();
 
@@ -137,40 +137,42 @@ export async function registerUser({
 
   const passwordHash = await bcrypt.hash(password, 12);
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-  const userId = `GIG${Date.now().toString().slice(-4)}${randomSuffix}`;
+  const userId = `USR_${Date.now().toString().slice(-6)}${randomSuffix}`;
 
   const defaultFinancials = {
     userId,
     user_id: userId,
     fullName: fullName.trim(),
     email: normalizedEmail,
-    worker_type: workerType || 'Delivery Partner',
+    worker_type: workerType || 'Individual',
     passwordHash,
     emailVerified: false,
-    age: 28,
-    monthly_income: 42000,
-    income_stability_score: 0.72,
-    monthly_expenses: 24000,
-    monthly_savings: 12000,
-    existing_debt: 28000,
-    monthly_emi: 2200,
-    credit_card_balance: 14000,
-    bnpl_balance: 5000,
+    age: 26,
+    monthly_income: 0,
+    income_stability_score: 0.8,
+    monthly_expenses: 0,
+    monthly_savings: 0,
+    existing_debt: 0,
+    monthly_emi: 0,
+    credit_card_balance: 0,
+    bnpl_balance: 0,
     vehicle_loan_outstanding: 0,
-    active_loan_count: 1,
-    repayment_rate: 0.88,
+    active_loan_count: 0,
+    repayment_rate: 1.0,
     missed_payments_12m: 0,
-    foir_pct: 5.24,
-    monthly_cashflow: 18000,
-    cashflow_score: 68.5,
-    risk_band: 'Low Risk',
-    forecast_30d_cashflow: 16200,
-    forecast_60d_cashflow: 16500,
-    forecast_90d_cashflow: 16800,
+    foir_pct: 0,
+    monthly_cashflow: 0,
+    emergency_expense: 0,
+    income_drop_scenario_pct: 0,
+    cashflow_score: 0,
+    risk_band: 'Unassessed',
+    forecast_30d_cashflow: 0,
+    forecast_60d_cashflow: 0,
+    forecast_90d_cashflow: 0,
     createdAt: new Date().toISOString(),
   };
 
-  const { createOrUpdateUser, storeEmailVerificationCode } = await import('./firestoreService');
+  const { createOrUpdateUser, storeEmailVerificationCode } = await import('./supabaseService');
   await createOrUpdateUser(defaultFinancials);
 
   // Generate 6-digit OTP code
@@ -210,7 +212,7 @@ export async function registerUser({
 
 export async function verifyEmailCode(email: string, code: string) {
   const normalizedEmail = email.trim().toLowerCase();
-  const { verifyEmailCodeRecord, getUserAuthRecord, createOrUpdateUser } = await import('./firestoreService');
+  const { verifyEmailCodeRecord, getUserAuthRecord, createOrUpdateUser } = await import('./supabaseService');
   
   const isValid = await verifyEmailCodeRecord(normalizedEmail, code.trim());
   if (!isValid) {
@@ -244,7 +246,7 @@ export async function verifyEmailCode(email: string, code: string) {
 
 export async function resendVerificationCode(email: string) {
   const normalizedEmail = email.trim().toLowerCase();
-  const { getUserAuthRecord, storeEmailVerificationCode } = await import('./firestoreService');
+  const { getUserAuthRecord, storeEmailVerificationCode } = await import('./supabaseService');
   const user = await getUserAuthRecord(normalizedEmail);
   if (!user) {
     throw new Error('No account found with this email address.');
@@ -293,41 +295,41 @@ export async function googleLogin(payload: {
     throw new Error('A valid email is required for Google Sign-In.');
   }
 
-  const { getUserAuthRecord, createOrUpdateUser } = await import('./firestoreService');
+  const { getUserAuthRecord, createOrUpdateUser } = await import('./supabaseService');
   let user = await getUserAuthRecord(normalizedEmail);
 
   if (!user) {
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const userId = `GOOG${Date.now().toString().slice(-4)}${randomSuffix}`;
+    const userId = `GOOG_${Date.now().toString().slice(-6)}${randomSuffix}`;
     user = {
       userId,
       user_id: userId,
       fullName: payload.name || normalizedEmail.split('@')[0],
       email: normalizedEmail,
       profilePhoto: payload.picture || null,
-      worker_type: 'Gig Worker',
+      worker_type: 'Individual',
       emailVerified: true,
       authProvider: 'google',
-      age: 30,
-      monthly_income: 45000,
-      income_stability_score: 0.78,
-      monthly_expenses: 25000,
-      monthly_savings: 14000,
-      existing_debt: 22000,
-      monthly_emi: 1800,
-      credit_card_balance: 11000,
-      bnpl_balance: 3000,
+      age: 26,
+      monthly_income: 0,
+      income_stability_score: 0.8,
+      monthly_expenses: 0,
+      monthly_savings: 0,
+      existing_debt: 0,
+      monthly_emi: 0,
+      credit_card_balance: 0,
+      bnpl_balance: 0,
       vehicle_loan_outstanding: 0,
-      active_loan_count: 1,
-      repayment_rate: 0.92,
+      active_loan_count: 0,
+      repayment_rate: 1.0,
       missed_payments_12m: 0,
-      foir_pct: 4.0,
-      monthly_cashflow: 20000,
-      cashflow_score: 72.0,
-      risk_band: 'Low Risk',
-      forecast_30d_cashflow: 18000,
-      forecast_60d_cashflow: 18300,
-      forecast_90d_cashflow: 18600,
+      foir_pct: 0,
+      monthly_cashflow: 0,
+      cashflow_score: 0,
+      risk_band: 'Unassessed',
+      forecast_30d_cashflow: 0,
+      forecast_60d_cashflow: 0,
+      forecast_90d_cashflow: 0,
       createdAt: new Date().toISOString(),
     };
     await createOrUpdateUser(user);

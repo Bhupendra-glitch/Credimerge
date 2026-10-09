@@ -22,11 +22,23 @@ const upload = (0, multer_1.default)({
 });
 const origins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
     .split(',')
-    .map((value) => value.trim())
+    .map((value) => {
+    const trimmed = value.trim();
+    try {
+        return new URL(trimmed).origin;
+    }
+    catch {
+        return trimmed.replace(/\/+$/, '');
+    }
+})
     .filter(Boolean);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        if (!origin || process.env.NODE_ENV !== 'production' || origins.includes(origin)) {
+        if (!origin || process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        const normalized = origin.replace(/\/+$/, '');
+        if (origins.includes(normalized) || origins.some((o) => normalized.startsWith(o))) {
             return callback(null, true);
         }
         return callback(new Error('Origin is not allowed by CORS'));
@@ -53,16 +65,17 @@ app.post(['/api/login', '/api/auth/login'], async (req, res) => {
             return res.status(401).json({ error: error.message });
         }
         const detail = error instanceof Error ? error.message.toLowerCase() : '';
-        const firebaseConfigError = [
-            'firebase admin is not configured',
-            'firebase service-account file',
+        const dbConfigError = [
+            'firebase',
+            'supabase',
+            'not configured',
             'default credentials',
-            'could not load the default credentials',
+            'unable to detect a project id',
         ].some((indicator) => detail.includes(indicator));
         console.error('Login failed:', error);
         return res.status(503).json({
-            error: firebaseConfigError
-                ? 'Firebase authentication is not configured. Add Backend/credentials/firebase-service-account.json and restart the backend.'
+            error: dbConfigError
+                ? 'Database is not configured yet. Configure Supabase credentials in Backend/.env and restart the backend.'
                 : 'Login is temporarily unavailable. Please try again.',
         });
     }
@@ -73,8 +86,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         return res.status(400).json({ error: 'Email address is required.' });
     }
     try {
-        const message = await (0, authService_1.requestPasswordReset)(email);
-        return res.json({ message });
+        const result = await (0, authService_1.requestPasswordReset)(email);
+        return res.json(typeof result === 'string' ? { message: result } : result);
     }
     catch (error) {
         const message = error instanceof Error ? error.message : '';
@@ -102,6 +115,62 @@ app.post('/api/auth/reset-password', async (req, res) => {
         const message = error instanceof Error ? error.message : 'Unable to reset password.';
         console.error('Password reset failed:', error);
         return res.status(400).json({ error: message });
+    }
+});
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { email, password, fullName, workerType } = req.body || {};
+        if (!email || !password || !fullName) {
+            return res.status(400).json({ error: 'Full name, email, and password are required.' });
+        }
+        const result = await (0, authService_1.registerUser)({ email, password, fullName, workerType });
+        return res.status(201).json(result);
+    }
+    catch (error) {
+        console.error('Registration failed:', error);
+        return res.status(400).json({ error: error.message || 'Registration failed.' });
+    }
+});
+app.post('/api/auth/verify-email', async (req, res) => {
+    try {
+        const { email, code } = req.body || {};
+        if (!email || !code) {
+            return res.status(400).json({ error: 'Email and 6-digit verification code are required.' });
+        }
+        const result = await (0, authService_1.verifyEmailCode)(email, code);
+        return res.json(result);
+    }
+    catch (error) {
+        console.error('Email verification failed:', error);
+        return res.status(400).json({ error: error.message || 'Verification failed.' });
+    }
+});
+app.post('/api/auth/resend-verification', async (req, res) => {
+    try {
+        const { email } = req.body || {};
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required.' });
+        }
+        const result = await (0, authService_1.resendVerificationCode)(email);
+        return res.json(result);
+    }
+    catch (error) {
+        console.error('Resend verification failed:', error);
+        return res.status(400).json({ error: error.message || 'Unable to resend code.' });
+    }
+});
+app.post('/api/auth/google', async (req, res) => {
+    try {
+        const { email, name, picture, credential } = req.body || {};
+        if (!email) {
+            return res.status(400).json({ error: 'Google email is required.' });
+        }
+        const result = await (0, authService_1.googleLogin)({ email, name, picture, credential });
+        return res.json(result);
+    }
+    catch (error) {
+        console.error('Google login failed:', error);
+        return res.status(400).json({ error: error.message || 'Google sign-in failed.' });
     }
 });
 app.post('/api/ai/chat', auth_1.authenticate, async (req, res) => {
@@ -219,6 +288,31 @@ app.patch('/api/me/profile', auth_1.authenticate, async (req, res) => {
     }
     catch (error) {
         return res.status(500).json({ error: error.message || 'Unable to save profile.' });
+    }
+});
+app.patch('/api/me/photo', auth_1.authenticate, async (req, res) => {
+    const profilePhoto = req.body?.profilePhoto;
+    if (profilePhoto !== null && typeof profilePhoto !== 'string') {
+        return res.status(400).json({ error: 'Choose a valid profile photo.' });
+    }
+    if (typeof profilePhoto === 'string') {
+        const imageData = profilePhoto.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/);
+        if (!imageData || imageData[1].length > 550000) {
+            return res.status(400).json({ error: 'Profile photos must be JPEG images under 400 KB.' });
+        }
+        const imageBytes = Buffer.from(imageData[1], 'base64');
+        if (imageBytes.length > 400 * 1024 || imageBytes[0] !== 0xff || imageBytes[1] !== 0xd8 || imageBytes[2] !== 0xff) {
+            return res.status(400).json({ error: 'Profile photos must be valid JPEG images under 400 KB.' });
+        }
+    }
+    try {
+        const user = await (0, firestoreService_1.updateUserPhoto)(req.user.userId, profilePhoto);
+        if (!user)
+            return res.status(404).json({ error: 'Profile photo updates are unavailable for demo accounts.' });
+        return res.json(user);
+    }
+    catch (error) {
+        return res.status(500).json({ error: error.message || 'Unable to save profile photo.' });
     }
 });
 app.post('/api/me/password', auth_1.authenticate, async (req, res) => {
