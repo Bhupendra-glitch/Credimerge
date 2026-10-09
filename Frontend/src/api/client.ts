@@ -218,6 +218,32 @@ export const api = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
+  // Tiger Data (TimescaleDB) Time-Series Financial Analytics
+  getTigerHealth: () =>
+    client.get('/api/health/tiger'),
+
+  getFinancialTransactions: (userId: string, params?: Record<string, any>) =>
+    client.get(`/api/financial/transactions/${userId}`, { params }),
+
+  createFinancialTransaction: (data: Record<string, unknown>) =>
+    client.post('/api/financial/transactions', data),
+
+  getCashFlow: (userId: string, interval: 'day' | 'week' | 'month' = 'day') =>
+    client.get(`/api/financial/cashflow/${userId}`, { params: { interval } }),
+
+  getIncomeHistory: (userId: string) =>
+    client.get(`/api/financial/income/${userId}`),
+
+  getExpenseHistory: (userId: string) =>
+    client.get(`/api/financial/expenses/${userId}`),
+
+  getBalanceHistory: (userId: string) =>
+    client.get(`/api/financial/balance/${userId}`),
+
+  getFinancialForecast: (userId: string) =>
+    client.get(`/api/financial/forecast/${userId}`),
 };
 
 export default client;
+

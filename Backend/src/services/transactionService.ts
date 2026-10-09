@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { getSupabase } from '../config/supabase';
+import { insertFinancialTransaction } from './tigerDataService';
 
 export type TransactionType = 'CREDIT' | 'DEBIT';
 export type TransactionStatus = 'PENDING' | 'SUCCESS' | 'REVERSED' | 'FAILED';
@@ -493,8 +494,24 @@ export async function createTransaction(
     }
   }
 
+  // Mirror into Tiger Data (TimescaleDB) time-series storage
+  insertFinancialTransaction({
+    userId: transaction.userId,
+    transactionId: transaction.id,
+    time: transaction.transactionDate,
+    transactionType: transaction.type,
+    category: transaction.category,
+    amount: transaction.amount,
+    description: transaction.description,
+    source: transaction.source,
+  }).catch((err) => {
+    // Non-blocking sync warning
+    console.warn('Tiger Data sync notice:', err.message);
+  });
+
   return { transaction, isDuplicate: false };
 }
+
 
 /**
  * Batch insert transactions with duplicate skipping.

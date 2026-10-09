@@ -202,3 +202,56 @@ export interface ConfidentialRiskResult {
   attestationVerificationProof: string;
   executionTimestamp: string;
 }
+
+export interface FinancialTransaction {
+  time: string;
+  user_id: string;
+  transaction_id: string;
+  transaction_type: 'CREDIT' | 'DEBIT' | 'TRANSFER';
+  category: string;
+  amount: number;
+  balance?: number | null;
+  description: string;
+  source: string;
+  created_at: string;
+}
+
+export interface CashFlowPoint {
+  date: string;
+  income: number;
+  expenses: number;
+  netCashFlow: number;
+  transactionCount?: number;
+}
+
+export interface BalanceHistoryPoint {
+  date: string;
+  balance: number;
+  time: string;
+}
+
+export interface ForecastProjection {
+  days: number;
+  projectedIncome: number;
+  projectedExpenses: number;
+  projectedNetSavings: number;
+  dailyRunRate: number;
+  confidenceScore: number;
+}
+
+export interface FinancialForecast {
+  days30: ForecastProjection;
+  days60: ForecastProjection;
+  days90: ForecastProjection;
+  historicalDaysAnalyzed: number;
+  averageDailyIncome: number;
+  averageDailyExpenses: number;
+  incomeVolatilityPercent: number;
+  riskBand: 'LOW' | 'MODERATE' | 'HIGH';
+}
+
+export interface TigerHealthStatus {
+  success: boolean;
+  service: string;
+  database: 'connected' | 'disconnected';
+}

@@ -16,6 +16,8 @@ import FloatingAI from '../components/FloatingAI';
 import AddTransactionModal from '../components/AddTransactionModal';
 import ConnectAccountModal from '../components/ConnectAccountModal';
 import TeeVerificationBadge from '../components/TeeVerificationBadge';
+import TigerDataAnalytics from '../components/TigerDataAnalytics';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import {
   Transaction,
@@ -40,6 +42,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export default function TransactionsPage() {
+  const { user } = useAuth();
+  const currentUserId = user?.user_id || user?.userId || 'GIG1001';
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<LinkedAccount[]>([]);
   const [summary, setSummary] = useState<TransactionSummary | null>(null);
@@ -445,7 +449,10 @@ export default function TransactionsPage() {
           </section>
         )}
 
-        {/* 4. Transactions Table & Filters */}
+        {/* 4. Tiger Data Time-Series Analytics & Forecasting */}
+        <TigerDataAnalytics userId={currentUserId} refreshTrigger={transactions.length} />
+
+        {/* 5. Transactions Table & Filters */}
         <section className="p-6 rounded-2xl border border-white/[0.08] bg-slate-950/60 space-y-5">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>

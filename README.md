@@ -387,6 +387,102 @@ npm run build
 
 ---
 
+## 🐯 Tiger Data Integration
+
+CrediMerge integrates **Tiger Data (Tiger Cloud / TimescaleDB PostgreSQL)** as its dedicated financial time-series storage and analytical engine.
+
+### Why CrediMerge Uses Tiger Data
+Traditional relational databases struggle with high-frequency time-series aggregations across hundreds of bank credits, debits, and balance points. Tiger Data combines standard PostgreSQL capabilities with TimescaleDB's native hypertables, offering:
+- **Partitioned Time-Series Hypertables**: Automated temporal chunking for fast transaction inserts and retrieval.
+- **Native `time_bucket` Aggregation**: Millisecond-level computation of daily, weekly, and monthly cash flow metrics.
+- **Analytical Velocity Modeling**: Real-time run-rate and volatility tracking for 30/60/90-day predictive forecasts.
+
+### Data Architecture Separation
+CrediMerge strictly partitions responsibilities across database tiers:
+- **Tiger Data (TimescaleDB)**:
+  - High-volume financial transactions (`financial_transactions` hypertable)
+  - Income and deposit history
+  - Expense and debit history
+  - Time-bucketed cash flow trends
+  - Balance trajectory and volatility metrics
+  - 30/60/90-day cash flow forecast data
+- **Supabase (PostgreSQL Relational)**:
+  - User accounts and identity profiles
+  - Loan applications and lender records
+  - Credit health assessment reports
+  - General relational business entities
+
+### Local Setup & Environment Configuration
+Tiger Data is connected **only** in the Node/Express backend (`Backend/.env`). It is **never** exposed to the React frontend or committed to GitHub.
+
+1. Add the connection string to `Backend/.env`:
+   ```env
+   # Tiger Data (TimescaleDB / Tiger Cloud)
+   TIGER_DATABASE_URL=postgres://USERNAME:PASSWORD@HOST:PORT/tsdb?sslmode=require
+   ```
+2. The backend connection pool automatically initializes the hypertable and compound indexes on startup (`Backend/tiger_schema.sql`).
+3. Verify connection health:
+   ```bash
+   curl http://localhost:5000/api/health/tiger
+   # {"success":true,"service":"tiger-data","database":"connected"}
+   ```
+
+### Database Schema (`financial_transactions`)
+```sql
+CREATE TABLE IF NOT EXISTS financial_transactions (
+    time TIMESTAMPTZ NOT NULL,
+    user_id TEXT NOT NULL,
+    transaction_id TEXT,
+    transaction_type TEXT NOT NULL,          -- 'CREDIT' | 'DEBIT' | 'TRANSFER'
+    category TEXT,                          -- 'SALARY', 'GROCERIES', 'BILLS', etc.
+    amount NUMERIC(15, 2) NOT NULL,
+    balance NUMERIC(15, 2),
+    description TEXT,
+    source TEXT DEFAULT 'MANUAL',           -- 'LIVE', 'SANDBOX', 'IMPORTED', 'MANUAL'
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- TimescaleDB Hypertable
+SELECT create_hypertable('financial_transactions', 'time', if_not_exists => TRUE, migrate_data => TRUE);
+
+-- Compound Time-Series Indexes
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_user_time ON financial_transactions (user_id, time DESC);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_type ON financial_transactions (user_id, transaction_type, time DESC);
+CREATE INDEX IF NOT EXISTS idx_financial_transactions_category ON financial_transactions (user_id, category, time DESC);
+```
+
+### Tiger Data API Endpoints
+
+| Method | Endpoint | Auth | Purpose |
+|--------|----------|------|---------|
+| GET | `/api/health/tiger` | Public | Safe Tiger Data connectivity health status |
+| GET | `/api/financial/transactions/:userId` | ✅ Auth | Paginated time-series transactions for user |
+| POST | `/api/financial/transactions` | ✅ Auth | Record financial transaction into Tiger hypertable |
+| GET | `/api/financial/cashflow/:userId` | ✅ Auth | Daily, weekly, or monthly `time_bucket` cash flow |
+| GET | `/api/financial/income/:userId` | ✅ Auth | Historical credit / deposit stream |
+| GET | `/api/financial/expenses/:userId` | ✅ Auth | Historical debit / expense stream |
+| GET | `/api/financial/balance/:userId` | ✅ Auth | Balance trends over time |
+| GET | `/api/financial/forecast/:userId` | ✅ Auth | 30, 60, and 90-day predictive forecasts |
+
+### Render Deployment Configuration
+The Node.js backend is deployed on Render.
+1. Open your Render Dashboard for the backend service (`credimerge-backend`).
+2. Navigate to **Environment Variables**.
+3. Add:
+   - **Key**: `TIGER_DATABASE_URL`
+   - **Value**: `postgres://USERNAME:PASSWORD@HOST:PORT/tsdb?sslmode=require`
+4. Deploy the service.
+5. **Never** add `TIGER_DATABASE_URL` to Vercel or frontend environments.
+
+### Security Guarantees
+- **Zero Frontend Exposure**: The React frontend communicates strictly via Express REST API (`/api/financial/...`), never directly to Tiger Data.
+- **Strict User Authorization**: Users can only query and write to their own financial records; cross-user data queries return `403 Forbidden`.
+- **Parameterized Queries**: All SQL statements use parameterized place-holders (`$1, $2, ...`), preventing SQL injection.
+- **SSL Enforced**: TLS with SSL mode required for all Tiger Cloud connections.
+- **Sanitized Logging**: Credentials, passwords, and connection strings are masked from console outputs and health responses.
+
+---
+
 ## 👥 Team
 
 | Member | Role | Ownership |

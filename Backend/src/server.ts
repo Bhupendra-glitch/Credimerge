@@ -59,6 +59,20 @@ import {
   synthesizeWithElevenLabs,
   isElevenLabsAvailable,
 } from './services/elevenLabsService';
+import {
+  initTigerDatabase,
+  testTigerConnection,
+  isTigerConfigured,
+} from './config/tigerData';
+import {
+  insertFinancialTransaction,
+  getFinancialTransactions,
+  getCashFlow,
+  getIncomeHistory,
+  getExpenseHistory,
+  getBalanceHistory,
+  getForecastingData,
+} from './services/tigerDataService';
 
 dotenv.config();
 
@@ -102,6 +116,40 @@ app.get('/', (_req, res) => {
 
 app.get(['/health', '/api/health'], (_req, res) => {
   res.json({ status: 'healthy' });
+});
+
+// GET /api/health/tiger - Safe Tiger Data health status (never exposes secrets or connection strings)
+app.get('/api/health/tiger', async (_req, res) => {
+  try {
+    if (!isTigerConfigured()) {
+      return res.status(503).json({
+        success: false,
+        service: 'tiger-data',
+        database: 'disconnected',
+      });
+    }
+
+    const connected = await testTigerConnection();
+    if (connected) {
+      return res.json({
+        success: true,
+        service: 'tiger-data',
+        database: 'connected',
+      });
+    } else {
+      return res.status(503).json({
+        success: false,
+        service: 'tiger-data',
+        database: 'disconnected',
+      });
+    }
+  } catch {
+    return res.status(503).json({
+      success: false,
+      service: 'tiger-data',
+      database: 'disconnected',
+    });
+  }
 });
 
 app.post(['/api/login', '/api/auth/login'], async (req, res) => {
@@ -1142,6 +1190,238 @@ app.post('/api/voice/chat', authenticate, upload.single('audio'), async (req: Au
   }
 });
 
-app.listen(PORT, () => {
-  console.log('🚀 CrediMerge API running on http://localhost:' + PORT);
+// ==========================================
+// 6. TIGER DATA (TIMESCALE DB) FINANCIAL TIME-SERIES ENDPOINTS
+// ==========================================
+
+function isAuthorizedFinancialUser(req: AuthRequest, targetUserId: string): boolean {
+  if (!req.user || !req.user.userId) return false;
+  const current = req.user.userId.trim().toUpperCase();
+  const target = targetUserId.trim().toUpperCase();
+  return current === target || current === 'ADMIN';
+}
+
+// GET /api/financial/transactions/:userId - Retrieve high-volume transactions from Tiger Data
+app.get('/api/financial/transactions/:userId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    if (!isAuthorizedFinancialUser(req, targetUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You can only access your own financial data',
+      });
+    }
+
+    const { limit, offset, transactionType, category, startDate, endDate } = req.query;
+    const result = await getFinancialTransactions(targetUserId, {
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+      transactionType: typeof transactionType === 'string' ? transactionType : undefined,
+      category: typeof category === 'string' ? category : undefined,
+      startDate: typeof startDate === 'string' ? startDate : undefined,
+      endDate: typeof endDate === 'string' ? endDate : undefined,
+    });
+
+    return res.json({
+      success: true,
+      data: result.transactions,
+      totalCount: result.totalCount,
+    });
+  } catch (err: any) {
+    console.error('Tiger Data transaction query error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Unable to load transactions' });
+  }
 });
+
+// POST /api/financial/transactions - Insert financial transaction into Tiger Data hypertable
+app.post('/api/financial/transactions', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const currentUserId = req.user!.userId;
+    const {
+      userId,
+      transactionId,
+      time,
+      transactionType,
+      category,
+      amount,
+      balance,
+      description,
+      source,
+    } = req.body || {};
+
+    const targetUserId = userId || currentUserId;
+    if (!isAuthorizedFinancialUser(req, targetUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: Cannot create transactions for another user',
+      });
+    }
+
+    if (!transactionType || amount === undefined || amount === null) {
+      return res.status(400).json({
+        success: false,
+        error: 'transactionType and amount are required',
+      });
+    }
+
+    const numAmount = Number(amount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'amount must be a positive number',
+      });
+    }
+
+    const normType = String(transactionType).toUpperCase();
+    if (!['CREDIT', 'DEBIT', 'TRANSFER'].includes(normType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'transactionType must be CREDIT, DEBIT, or TRANSFER',
+      });
+    }
+
+    const tx = await insertFinancialTransaction({
+      userId: targetUserId,
+      transactionId,
+      time,
+      transactionType: normType as 'CREDIT' | 'DEBIT' | 'TRANSFER',
+      category: category ? String(category).trim() : 'OTHER',
+      amount: numAmount,
+      balance: balance !== undefined && balance !== null ? Number(balance) : null,
+      description: description ? String(description).trim() : 'Transaction',
+      source: source || 'MANUAL',
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: tx,
+    });
+  } catch (err: any) {
+    console.error('Tiger Data transaction insert error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Unable to record transaction' });
+  }
+});
+
+// GET /api/financial/cashflow/:userId - Daily, weekly, or monthly cash flow time-series
+app.get('/api/financial/cashflow/:userId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    if (!isAuthorizedFinancialUser(req, targetUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You can only access your own financial data',
+      });
+    }
+
+    const interval = (req.query.interval === 'month' || req.query.interval === 'week')
+      ? req.query.interval
+      : 'day';
+
+    const cashFlow = await getCashFlow(targetUserId, interval);
+    return res.json({
+      success: true,
+      data: cashFlow,
+    });
+  } catch (err: any) {
+    console.error('Tiger Data cashflow error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Unable to calculate cash flow' });
+  }
+});
+
+// GET /api/financial/income/:userId - Income history time-series
+app.get('/api/financial/income/:userId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    if (!isAuthorizedFinancialUser(req, targetUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You can only access your own financial data',
+      });
+    }
+
+    const income = await getIncomeHistory(targetUserId);
+    return res.json({
+      success: true,
+      data: income,
+    });
+  } catch (err: any) {
+    console.error('Tiger Data income history error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Unable to load income history' });
+  }
+});
+
+// GET /api/financial/expenses/:userId - Expense history time-series
+app.get('/api/financial/expenses/:userId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    if (!isAuthorizedFinancialUser(req, targetUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You can only access your own financial data',
+      });
+    }
+
+    const expenses = await getExpenseHistory(targetUserId);
+    return res.json({
+      success: true,
+      data: expenses,
+    });
+  } catch (err: any) {
+    console.error('Tiger Data expense history error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Unable to load expense history' });
+  }
+});
+
+// GET /api/financial/balance/:userId - Balance history and trends
+app.get('/api/financial/balance/:userId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    if (!isAuthorizedFinancialUser(req, targetUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You can only access your own financial data',
+      });
+    }
+
+    const balances = await getBalanceHistory(targetUserId);
+    return res.json({
+      success: true,
+      data: balances,
+    });
+  } catch (err: any) {
+    console.error('Tiger Data balance history error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Unable to load balance history' });
+  }
+});
+
+// GET /api/financial/forecast/:userId - 30/60/90 day forecasts & financial risk calculations
+app.get('/api/financial/forecast/:userId', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const targetUserId = req.params.userId;
+    if (!isAuthorizedFinancialUser(req, targetUserId)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden: You can only access your own financial data',
+      });
+    }
+
+    const forecast = await getForecastingData(targetUserId);
+    return res.json({
+      success: true,
+      data: forecast,
+    });
+  } catch (err: any) {
+    console.error('Tiger Data forecast calculation error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Unable to generate financial forecast' });
+  }
+});
+
+app.listen(PORT, async () => {
+  console.log('🚀 CrediMerge API running on http://localhost:' + PORT);
+  try {
+    await initTigerDatabase();
+  } catch (err: any) {
+    console.warn('Tiger Data initialization check:', err.message);
+  }
+});
+
