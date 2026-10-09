@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ProfileMenu from './ProfileMenu';
@@ -8,28 +8,58 @@ export default function Header() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const navItems = [
+    { label: 'Dashboard', path: '/home' },
+    { label: 'Loans & EMI', path: '/emi' },
+    { label: 'Transactions', path: '/transactions' },
+    { label: 'Credit Health', path: '/credit-health' },
+  ];
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.06] bg-[#050707]/75 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-6 h-[76px] flex items-center justify-between">
 
-        <button
-          onClick={() => navigate('/home')}
-          className="group flex items-center gap-3"
-        >
-          <span className="flex h-8 w-8 items-center justify-center border border-emerald-400/40 text-emerald-400 text-sm font-bold transition-all duration-300 group-hover:bg-emerald-400 group-hover:text-black">
-            C
-          </span>
+        <div className="flex items-center gap-8">
+          <button
+            onClick={() => navigate('/home')}
+            className="group flex items-center gap-3"
+          >
+            <span className="flex h-8 w-8 items-center justify-center border border-emerald-400/40 text-emerald-400 text-sm font-bold transition-all duration-300 group-hover:bg-emerald-400 group-hover:text-black">
+              C
+            </span>
 
-          <span className="text-xl font-black tracking-[-0.04em] text-white">
-            Credi<span className="text-emerald-400">Merge</span>
-          </span>
-        </button>
+            <span className="text-xl font-black tracking-[-0.04em] text-white">
+              Credi<span className="text-emerald-400">Merge</span>
+            </span>
+          </button>
+
+          {/* Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {navItems.map((item) => {
+              const active = location.pathname === item.path;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className={`px-3 py-1.5 text-xs font-semibold tracking-wider transition rounded-lg ${
+                    active
+                      ? 'bg-white/[0.08] text-emerald-400 shadow-sm'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.03]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
         <div className="flex items-center gap-3 sm:gap-4">
           <div className="hidden md:block text-right">

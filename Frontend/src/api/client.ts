@@ -148,6 +148,49 @@ export const api = {
 
   chatWithAI: (message: string, context?: unknown) =>
     client.post('/api/ai/chat', { message, context }),
+
+  // Real-Time Transactions & Accounts
+  getTransactions: (params?: Record<string, any>) =>
+    client.get('/api/transactions', { params }),
+
+  getTransactionSummary: () =>
+    client.get('/api/transactions/summary'),
+
+  createTransaction: (data: Record<string, unknown>) =>
+    client.post('/api/transactions', data),
+
+  updateTransactionCategory: (id: string, category: string) =>
+    client.patch(`/api/transactions/${id}/category`, { category }),
+
+  deleteTransaction: (id: string) =>
+    client.delete(`/api/transactions/${id}`),
+
+  getLinkedAccounts: () =>
+    client.get('/api/accounts'),
+
+  connectSandboxAccount: (institutionName?: string) =>
+    client.post('/api/accounts/connect-sandbox', { institutionName }),
+
+  syncAccount: (accountId: string) =>
+    client.post('/api/accounts/sync', { accountId }),
+
+  getConsent: () =>
+    client.get('/api/accounts/consent'),
+
+  createConsent: (data: Record<string, unknown>) =>
+    client.post('/api/accounts/consent', data),
+
+  revokeConsent: (consentId: string) =>
+    client.post('/api/accounts/consent/revoke', { consentId }),
+
+  getTransactionInsights: () =>
+    client.get('/api/advisor/transaction-insights'),
+
+  getTeeAttestation: (nonce?: string) =>
+    client.get('/api/tee/attestation', { params: { nonce } }),
+
+  computeTeeRisk: () =>
+    client.post('/api/tee/compute-risk'),
 };
 
 export default client;

@@ -8,12 +8,13 @@ import ConsolidationSimulator from '../components/ConsolidationSimulator';
 import NotificationSection from '../components/NotificationSection';
 import AddLoanModal from '../components/AddLoanModal';
 import { api, buildProfileLoanFallback } from '../api/client';
-import { Loan } from '../types';
+import { Loan, TransactionSummary } from '../types';
 
 export default function Home() {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [showAddLoanModal, setShowAddLoanModal] = useState(false);
+  const [txSummary, setTxSummary] = useState<TransactionSummary | null>(null);
 
   const [loans, setLoans] = useState<Loan[]>(() =>
     user ? buildProfileLoanFallback(user) : []
@@ -23,6 +24,13 @@ export default function Home() {
     setLoans((prev) => [newLoan, ...prev.filter((l) => l.id !== newLoan.id)]);
     await refreshUser();
   };
+
+  useEffect(() => {
+    if (!user) return;
+    api.getTransactionSummary()
+      .then((res) => setTxSummary(res.data))
+      .catch((err) => console.warn('Failed to load transaction summary:', err));
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -148,6 +156,13 @@ export default function Home() {
               </button>
 
               <button
+                onClick={() => navigate('/transactions')}
+                className="px-6 py-3 border border-emerald-400/40 text-emerald-300 text-xs font-bold uppercase tracking-[0.15em] hover:bg-emerald-400/10 transition-all duration-300"
+              >
+                Transactions & Cash Flow
+              </button>
+
+              <button
                 onClick={() => navigate('/credit-health')}
                 className="px-6 py-3 border border-white/[0.12] text-slate-300 text-xs font-bold uppercase tracking-[0.15em] hover:border-cyan-400/50 hover:text-cyan-300 transition-all duration-300"
               >
@@ -230,6 +245,75 @@ export default function Home() {
     />
   </div>
 </div>
+
+          {/* REAL-TIME TRANSACTION STREAM PREVIEW */}
+          <div className="mt-6 p-6 rounded-2xl border border-white/[0.08] bg-slate-950/60 cm-scan">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+              <div>
+                <div className="data-mono text-[9px] uppercase tracking-[0.25em] text-cyan-400 font-mono">
+                  LIVE ACTIVITY STREAM / TEE PROTECTED
+                </div>
+                <h3 className="text-xl font-bold text-white mt-0.5">
+                  Real-Time Transactions & Cash Flow
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <div className="text-[10px] uppercase font-mono text-slate-500">Net Cash Flow</div>
+                  <div
+                    className={`font-mono font-bold text-sm ${
+                      (txSummary?.netCashFlow || 0) >= 0 ? 'text-emerald-400' : 'text-amber-400'
+                    }`}
+                  >
+                    ₹{txSummary ? txSummary.netCashFlow.toLocaleString('en-IN') : '0'}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => navigate('/transactions')}
+                  className="px-4 py-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/20 transition"
+                >
+                  View All Transactions →
+                </button>
+              </div>
+            </div>
+
+            {txSummary && txSummary.recentTransactions && txSummary.recentTransactions.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                {txSummary.recentTransactions.slice(0, 3).map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="p-3.5 rounded-xl border border-white/5 bg-black/40 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <div className="font-semibold text-white truncate max-w-[150px]">{tx.description}</div>
+                      <div className="text-[10px] text-slate-500 mt-0.5">
+                        {new Date(tx.transactionDate).toLocaleDateString('en-IN', {
+                          day: '2-digit',
+                          month: 'short',
+                        })}{' '}
+                        • {tx.category.replace('_', ' ')}
+                      </div>
+                    </div>
+                    <div className={`font-mono font-bold text-xs ${tx.type === 'CREDIT' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {tx.type === 'CREDIT' ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-6 text-center text-xs text-slate-400 space-y-2">
+                <p>No recent transaction activity recorded yet.</p>
+                <button
+                  onClick={() => navigate('/transactions')}
+                  className="text-emerald-400 hover:underline font-semibold"
+                >
+                  Link Sandbox Bank Account or Add Transaction →
+                </button>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* NOTIFICATIONS & INTELLIGENCE ALERTS */}

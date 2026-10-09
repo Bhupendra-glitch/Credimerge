@@ -28,6 +28,32 @@ import {
 } from './services/supabaseService';
 import { buildStatementProfile } from './services/statementService';
 import { askGemini } from './services/geminiService';
+import {
+  createTransaction,
+  getTransactions,
+  getTransactionSummary,
+  updateTransactionCategory,
+  deleteTransaction,
+  listLinkedAccounts,
+  TransactionCategory,
+  TransactionType,
+} from './services/transactionService';
+import {
+  createConsentRequest,
+  getUserConsent,
+  revokeConsent,
+  connectSandboxAccount,
+  syncAccount,
+  verifyWebhookSignature,
+  processWebhookTransactions,
+} from './services/financialProviderService';
+import {
+  generateAttestationQuote,
+  computeConfidentialRisk,
+} from './services/teeService';
+import { analyzeTransactionInsights } from './services/transactionAdvisorService';
+import { memoryCache } from './services/cacheService';
+import { standardRateLimiter, strictRateLimiter } from './middleware/rateLimiter';
 
 dotenv.config();
 
@@ -63,6 +89,7 @@ app.use(cors({
   },
 }));
 app.use(express.json({ limit: '1mb' }));
+app.use(standardRateLimiter);
 
 app.get('/', (_req, res) => {
   res.json({ status: 'ok', service: 'CrediMerge API', version: '2.0' });
@@ -588,6 +615,371 @@ app.get('/api/reports/:id/download', authenticate, async (_req: AuthRequest, res
   return res.status(501).json({
     error: 'Report download is not configured yet. Add Cloud Storage signed URL generation here.',
   });
+});
+
+// ==========================================
+// 1. REAL-TIME TRANSACTIONS ENDPOINTS
+// ==========================================
+
+// GET /api/transactions - Retrieve user's transactions with search, filters, pagination
+app.get('/api/transactions', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const {
+      type,
+      category,
+      status,
+      source,
+      search,
+      startDate,
+      endDate,
+      accountId,
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    } = req.query;
+
+    const filter = {
+      type: type as any,
+      category: category as any,
+      status: status as any,
+      source: source as any,
+      search: typeof search === 'string' ? search : undefined,
+      startDate: typeof startDate === 'string' ? startDate : undefined,
+      endDate: typeof endDate === 'string' ? endDate : undefined,
+      accountId: typeof accountId === 'string' ? accountId : undefined,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      sortBy: sortBy as any,
+      sortOrder: sortOrder as any,
+    };
+
+    const result = await getTransactions(userId, filter);
+    return res.json(result);
+  } catch (err: any) {
+    console.error('Error fetching transactions:', err);
+    return res.status(500).json({ error: err.message || 'Unable to load transactions' });
+  }
+});
+
+// GET /api/transactions/summary - Retrieve credit/debit totals, cashflow, category breakdown (cached)
+app.get('/api/transactions/summary', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const cacheKey = `user:${userId}:summary`;
+    const cached = memoryCache.get(cacheKey);
+
+    if (cached) {
+      return res.json({ ...cached, cached: true });
+    }
+
+    const summary = await getTransactionSummary(userId);
+    memoryCache.set(cacheKey, summary, 60); // 60s TTL
+    return res.json({ ...summary, cached: false });
+  } catch (err: any) {
+    console.error('Error fetching transaction summary:', err);
+    return res.status(500).json({ error: err.message || 'Unable to build transaction summary' });
+  }
+});
+
+// POST /api/transactions - Create a manual or imported transaction
+app.post('/api/transactions', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const {
+      accountId,
+      type,
+      amount,
+      category,
+      description,
+      merchantName,
+      transactionDate,
+      status,
+      source,
+      referenceNumber,
+    } = req.body || {};
+
+    if (!type || !amount || !description) {
+      return res.status(400).json({ error: 'type, amount, and description are required' });
+    }
+
+    const numAmount = Number(amount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
+      return res.status(400).json({ error: 'amount must be a positive number' });
+    }
+
+    if (type !== 'CREDIT' && type !== 'DEBIT') {
+      return res.status(400).json({ error: 'type must be CREDIT or DEBIT' });
+    }
+
+    const result = await createTransaction(userId, {
+      accountId,
+      type: type as TransactionType,
+      amount: numAmount,
+      category: category as TransactionCategory,
+      description: String(description).trim(),
+      merchantName: merchantName ? String(merchantName).trim() : null,
+      transactionDate: transactionDate || new Date().toISOString(),
+      status,
+      source: source || 'MANUAL',
+      referenceNumber,
+      isUserConfirmedCategory: Boolean(category),
+    });
+
+    memoryCache.invalidateUser(userId);
+    return res.status(result.isDuplicate ? 200 : 201).json(result);
+  } catch (err: any) {
+    console.error('Error creating transaction:', err);
+    return res.status(500).json({ error: err.message || 'Unable to save transaction' });
+  }
+});
+
+// PATCH /api/transactions/:id/category - Update or confirm category
+app.patch('/api/transactions/:id/category', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const { category } = req.body || {};
+
+    if (!category || typeof category !== 'string') {
+      return res.status(400).json({ error: 'Valid category string is required' });
+    }
+
+    const updated = await updateTransactionCategory(userId, req.params.id, category as TransactionCategory);
+    if (!updated) return res.status(404).json({ error: 'Transaction not found' });
+
+    memoryCache.invalidateUser(userId);
+    return res.json(updated);
+  } catch (err: any) {
+    console.error('Error updating transaction category:', err);
+    return res.status(500).json({ error: err.message || 'Unable to update category' });
+  }
+});
+
+// DELETE /api/transactions/:id - Delete a transaction
+app.delete('/api/transactions/:id', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const success = await deleteTransaction(userId, req.params.id);
+    if (!success) return res.status(404).json({ error: 'Transaction not found' });
+
+    memoryCache.invalidateUser(userId);
+    return res.json({ message: 'Transaction removed successfully' });
+  } catch (err: any) {
+    console.error('Error deleting transaction:', err);
+    return res.status(500).json({ error: err.message || 'Unable to delete transaction' });
+  }
+});
+
+// ==========================================
+// 2. FINANCIAL DATA / ACCOUNT AGGREGATOR ENDPOINTS
+// ==========================================
+
+// GET /api/accounts - List linked accounts
+app.get('/api/accounts', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const accounts = await listLinkedAccounts(userId);
+    return res.json(accounts);
+  } catch (err: any) {
+    console.error('Error loading accounts:', err);
+    return res.status(500).json({ error: err.message || 'Unable to load accounts' });
+  }
+});
+
+// POST /api/accounts/connect-sandbox - Connect a realistic sandbox bank account
+app.post('/api/accounts/connect-sandbox', authenticate, strictRateLimiter, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const { institutionName } = req.body || {};
+
+    const validInstitutions = ['HDFC Bank', 'State Bank of India', 'ICICI Bank', 'Axis Bank'];
+    const inst = validInstitutions.includes(institutionName) ? institutionName : 'HDFC Bank';
+
+    const result = await connectSandboxAccount(userId, inst);
+    memoryCache.invalidateUser(userId);
+
+    return res.status(201).json({
+      message: `Successfully connected sandbox account for ${inst}. Initial transactions populated.`,
+      account: result.account,
+      transactionsCount: result.transactions.length,
+      disclaimer: 'Notice: These are synthetic sandbox transactions for testing and simulation. They do not represent real banking balances.',
+    });
+  } catch (err: any) {
+    console.error('Error connecting sandbox account:', err);
+    return res.status(500).json({ error: err.message || 'Unable to connect account' });
+  }
+});
+
+// POST /api/accounts/sync - Synchronize account transactions
+app.post('/api/accounts/sync', authenticate, strictRateLimiter, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const { accountId } = req.body || {};
+
+    if (!accountId) {
+      return res.status(400).json({ error: 'accountId is required' });
+    }
+
+    const result = await syncAccount(userId, accountId);
+    memoryCache.invalidateUser(userId);
+
+    return res.json({
+      message: 'Account synchronized successfully',
+      ...result,
+    });
+  } catch (err: any) {
+    console.error('Error syncing account:', err);
+    const isConsentErr = err.message && err.message.includes('CONSENT_EXPIRED');
+    return res.status(isConsentErr ? 403 : 500).json({
+      error: err.message || 'Unable to sync account transactions',
+      code: isConsentErr ? 'CONSENT_EXPIRED' : 'SYNC_FAILED',
+    });
+  }
+});
+
+// GET /api/accounts/consent - Get active user consent
+app.get('/api/accounts/consent', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const consent = await getUserConsent(userId);
+    return res.json(consent || { status: 'NONE' });
+  } catch (err: any) {
+    console.error('Error getting consent:', err);
+    return res.status(500).json({ error: err.message || 'Unable to check consent' });
+  }
+});
+
+// POST /api/accounts/consent - Create or renew consent
+app.post('/api/accounts/consent', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const { handle, provider, scopes, validityDays } = req.body || {};
+
+    if (!handle || typeof handle !== 'string') {
+      return res.status(400).json({ error: 'Account Aggregator handle is required (e.g. mobile@aa)' });
+    }
+
+    const consent = await createConsentRequest(userId, {
+      handle,
+      provider: provider || 'SANDBOX_AA',
+      scopes,
+      validityDays,
+    });
+
+    return res.status(201).json(consent);
+  } catch (err: any) {
+    console.error('Error creating consent:', err);
+    return res.status(500).json({ error: err.message || 'Unable to create consent' });
+  }
+});
+
+// POST /api/accounts/consent/revoke - Revoke consent
+app.post('/api/accounts/consent/revoke', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const { consentId } = req.body || {};
+
+    if (!consentId) return res.status(400).json({ error: 'consentId is required' });
+
+    await revokeConsent(userId, consentId);
+    return res.json({ message: 'Consent successfully revoked. No further automated fetches will occur.' });
+  } catch (err: any) {
+    console.error('Error revoking consent:', err);
+    return res.status(500).json({ error: err.message || 'Unable to revoke consent' });
+  }
+});
+
+// POST /api/webhooks/transactions - Verified provider notification webhook
+app.post('/api/webhooks/transactions', strictRateLimiter, async (req, res) => {
+  const signature = req.headers['x-webhook-signature'] as string;
+  const payloadStr = JSON.stringify(req.body);
+
+  if (!verifyWebhookSignature(payloadStr, signature)) {
+    return res.status(401).json({ error: 'Invalid or missing webhook signature' });
+  }
+
+  try {
+    const { userId, accountId, transactions } = req.body || {};
+    if (!userId || !accountId || !Array.isArray(transactions)) {
+      return res.status(400).json({ error: 'userId, accountId, and transactions array required' });
+    }
+
+    const result = await processWebhookTransactions(userId, accountId, transactions);
+    memoryCache.invalidateUser(userId);
+
+    return res.json({ status: 'PROCESSED', ...result });
+  } catch (err: any) {
+    console.error('Webhook processing failure:', err);
+    return res.status(500).json({ error: err.message || 'Internal webhook processing error' });
+  }
+});
+
+// ==========================================
+// 3. TRANSACTION ADVISOR INSIGHTS
+// ==========================================
+
+// GET /api/advisor/transaction-insights - Connects transaction patterns to loan consolidation
+app.get('/api/advisor/transaction-insights', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const cacheKey = `user:${userId}:advisor_insights`;
+    const cached = memoryCache.get(cacheKey);
+
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const insights = await analyzeTransactionInsights(userId);
+    memoryCache.set(cacheKey, insights, 60);
+
+    return res.json(insights);
+  } catch (err: any) {
+    console.error('Error generating advisor insights:', err);
+    return res.status(500).json({ error: err.message || 'Unable to generate advisor insights' });
+  }
+});
+
+// ==========================================
+// 4. TRUSTED EXECUTION ENVIRONMENT (TEE) ENDPOINTS
+// ==========================================
+
+// GET /api/tee/attestation - Remote attestation quote
+app.get('/api/tee/attestation', async (req, res) => {
+  try {
+    const nonce = typeof req.query.nonce === 'string' ? req.query.nonce : undefined;
+    const quote = await generateAttestationQuote(nonce || '');
+    return res.json(quote);
+  } catch (err: any) {
+    console.error('Attestation generation failure:', err);
+    return res.status(500).json({ error: 'Unable to generate enclave attestation' });
+  }
+});
+
+// POST /api/tee/compute-risk - Run confidential risk computation inside enclave
+app.post('/api/tee/compute-risk', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+
+    const [user, loans, summary] = await Promise.all([
+      getUserProfile(userId),
+      listLoans(userId),
+      getTransactionSummary(userId),
+    ]);
+
+    const result = await computeConfidentialRisk(userId, {
+      monthlyIncome: Number((user as any)?.monthly_income || 0),
+      monthlyExpenses: Number((user as any)?.monthly_expenses || 0),
+      loans: loans as any,
+      transactionCredits30d: summary.totalCredits,
+      transactionDebits30d: summary.totalDebits,
+    });
+
+    return res.json(result);
+  } catch (err: any) {
+    console.error('Confidential computation error:', err);
+    return res.status(500).json({ error: err.message || 'Confidential computation failure' });
+  }
 });
 
 app.listen(PORT, () => {

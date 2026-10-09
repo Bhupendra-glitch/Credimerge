@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import EmiPage from './pages/EmiPage';
 import CreditHealth from './pages/CreditHealth';
+import TransactionsPage from './pages/TransactionsPage';
 import PasswordReset from './pages/PasswordReset';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppBackground from './components/AppBackground';
@@ -29,6 +30,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <EmiPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <ProtectedRoute>
+                <TransactionsPage />
               </ProtectedRoute>
             }
           />
