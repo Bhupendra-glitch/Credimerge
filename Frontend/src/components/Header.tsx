@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ProfileMenu from './ProfileMenu';
+import NotificationBell from './NotificationBell';
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -30,7 +31,7 @@ export default function Header() {
           </span>
         </button>
 
-        <div className="flex items-center gap-3 sm:gap-5">
+        <div className="flex items-center gap-3 sm:gap-4">
           <div className="hidden md:block text-right">
             <div className="text-[9px] uppercase tracking-[0.2em] text-slate-600 mb-1">
               Account
@@ -42,6 +43,9 @@ export default function Header() {
           </div>
 
           <div className="h-8 w-px bg-white/[0.08] hidden md:block" />
+
+          {/* Global Notification Bell */}
+          <NotificationBell />
 
           <button
             type="button"

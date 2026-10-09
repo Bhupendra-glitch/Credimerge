@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import SectionCard from '../components/SectionCard';
 import FloatingAI from '../components/FloatingAI';
 import ConsolidationSimulator from '../components/ConsolidationSimulator';
+import NotificationSection from '../components/NotificationSection';
 import { api, buildProfileLoanFallback } from '../api/client';
 import { Loan } from '../types';
 
@@ -216,8 +217,11 @@ export default function Home() {
 </div>
         </section>
 
+        {/* NOTIFICATIONS & INTELLIGENCE ALERTS */}
+        <NotificationSection />
+
         {/* FINANCIAL SNAPSHOT */}
-        <section className="cm-scan cm-border-glow cm-interactive mt-12 border border-white/[0.07] bg-slate-950/60 p-6 md:p-8 relative overflow-hidden">
+        <section className="cm-scan cm-border-glow cm-interactive mt-16 border border-white/[0.07] bg-slate-950/60 p-6 md:p-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/[0.04] blur-[100px] pointer-events-none" />
 
           <div className="relative">

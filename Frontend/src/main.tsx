@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { NotificationProvider } from './context/NotificationContext';
 import './index.css';
 
 class AppErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
@@ -50,7 +51,9 @@ createRoot(document.getElementById('root')!).render(
 			<ThemeProvider>
 				<BrowserRouter>
 					<AuthProvider>
-						<App />
+						<NotificationProvider>
+							<App />
+						</NotificationProvider>
 					</AuthProvider>
 				</BrowserRouter>
 			</ThemeProvider>
