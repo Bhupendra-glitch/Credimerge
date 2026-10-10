@@ -1,547 +1,414 @@
-# 💸 CrediMerge
-### Smart Debt Management & Credit Health Platform
+# CrediMerge 💸
 
-> **AI-powered financial intelligence for gig workers, freelancers, and new-to-credit users.**
+### AI-powered Debt Management & Credit Health Platform
 
-CrediMerge helps users understand their complete financial picture by combining cashflow analysis, multi-loan management, loan consolidation simulation, and AI-powered financial guidance — all explained in plain language.
+CrediMerge is a financial decision-support platform designed to help gig workers, freelancers, and people building their credit history understand cash flow, manage multiple loans, explore consolidation scenarios, and make more informed financial decisions.
 
-[![Backend](https://img.shields.io/badge/API-Healthy-blue)](http://localhost:5000)
+> **Important:** CrediMerge provides estimates and educational guidance. It is not a credit bureau, lender, or substitute for professional financial advice. Scores produced by the project are not official CIBIL scores and do not guarantee loan approval.
+
+[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Python](https://img.shields.io/badge/Python-Analytics-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![React](https://img.shields.io/badge/React-18-61dafb)](https://react.dev)
-[![Node](https://img.shields.io/badge/Node-18+-339933)](https://nodejs.org)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776ab)](https://python.org)
+
+**Repository:** [Bhupendra-glitch/Credimerge](https://github.com/Bhupendra-glitch/Credimerge)  
+**Deployment guide:** [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
 
-## 🎯 What is CrediMerge?
+## Contents
 
-CrediMerge is a **financial decision-support platform** for users who:
-- Have active income but limited traditional credit history
-- Manage multiple loans (personal, credit card, BNPL, vehicle)
-- Want to understand their cashflow health beyond just CIBIL
-- Need to simulate loan decisions before committing
+- [Overview](#overview)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Getting Started](#getting-started)
+- [Environment Variables](#environment-variables)
+- [Running the Application](#running-the-application)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Data Services](#data-services)
+- [Security](#security)
+- [Roadmap](#roadmap)
+- [Team](#team)
+- [License](#license)
 
-Unlike traditional credit scoring, CrediMerge analyzes **actual cashflow patterns** from UPI/bank transactions to build an **explainable financial profile**.
+  <img width="2144" height="2280" alt="CrediMerge_Flowchart" src="https://github.com/user-attachments/assets/d80d3232-639c-44bb-aabf-b4444f84851b" />
+  **VIDEO LINK:- https://drive.google.com/file/d/14mXKJeffz_xvsKfBXpmzjFkokkaJFoh-/view?usp=sharing**
 
----
 
-## ✨ Key Features
+## Overview
 
-### 🔐 Authentication
-- JWT-based login with User ID + password
-- Secure session persistence
-- Protected routes with auto-logout on token expiry
+Many people earn regularly but have limited traditional credit history. CrediMerge aims to help users understand their financial profile using loan details and cash-flow information, rather than presenting a single unexplained number.
 
-### 💳 EMI & Loan Management
-- Add, edit, delete unlimited loans (Personal, Credit Card, BNPL, Vehicle)
-- Real-time EMI calculation (backend-driven)
-- Amortization schedules with principal/interest breakdown
-- Loan-wise analytics: EMI comparison, outstanding balance, interest rates
-- Highest interest loan & largest EMI highlights
+The application separates the user interface, API/orchestration layer, and financial analytics code. The backend handles authentication, requests, and integrations; calculations should be performed server-side and should not depend on values calculated only in the browser.
 
-### 🧾 Alternative Credit Health
-- Upload bank statement (PDF/CSV) or use sample data
-- **5-Factor Credit Health Score** (0–100):
-  - Income Stability (25 pts)
-  - Surplus Adequacy (20 pts)
-  - Repayment Discipline (25 pts)
-  - Balance Buffer (15 pts)
-  - Data Vintage (15 pts)
-- Cashflow metrics: Avg income, expenses, surplus, volatility, bounce count
-- Monthly income vs expense trend chart
-- **Safe EMI Capacity** (FOIR-based + Surplus-based)
-- Red flags & positive signals
-- **PDF report generation** with full breakdown
+## Features
 
-### 🔄 Consolidation Simulator
-- Compare **Existing Loans** vs **Consolidated Offer**
-- Live sliders for interest rate & tenure
-- See Monthly EMI, Total Interest, Debt-Free Timeline
-- Honest verdict: **EMI saving ≠ Interest saving**
+### Loan and EMI management
 
-### 🤖 AI Financial Assistant
-- Floating chat widget (always available)
-- Gemini-powered responses using **real user context**
-- Explains loans, EMIs, credit health, safe EMI, consolidation trade-offs
-- Never invents numbers — only interprets backend-calculated data
+- Manage loan records, including adding, editing, viewing, and deleting loans where the configured backend supports these operations.
+- Calculate estimated monthly instalments (EMIs).
+- Review repayment schedules and principal-versus-interest breakdowns.
+- Compare loan payments, balances, and interest rates.
 
-### 📊 Dashboard
-- Two main sections: **EMI Management** + **Credit Health**
-- Financial snapshot: Income, Expenses, Total EMI, Surplus
-- Backend-driven KPI cards with loading/error states
+### Alternative credit health and cash-flow analysis
 
----
+- Import supported bank statement formats such as PDF or CSV, depending on the configured parser.
+- Review income, expense, surplus, balance, and transaction trends.
+- Explore cash-flow indicators and potential positive signals or risk flags.
+- Estimate affordable EMI capacity using available income and expense information.
+- Generate a downloadable report when the report-generation service is configured.
 
-## 🏗️ Architecture
+### Loan consolidation simulator
 
+- Compare existing repayments with a hypothetical consolidated loan offer.
+- Explore how interest rate and tenure affect estimated EMI and total interest.
+- Consider both monthly payment changes and the overall cost of borrowing.
+
+> A lower EMI does not automatically mean a lower total interest cost. Compare the full repayment amount and loan duration before making a decision.
+
+### AI financial assistant
+
+- Uses the Google Gemini API through the backend to explain supported financial metrics and trade-offs in plain language.
+- Keeps the Gemini API key on the server rather than exposing it in frontend code.
+- AI responses are explanatory and should not replace verified calculation results or professional advice.
+
+### Financial time-series integration
+
+- Optional Tiger Data / TimescaleDB integration is intended for transaction history and time-based cash-flow analysis.
+- Supabase/PostgreSQL and Firebase-related dependencies are present in the repository. Which persistence path is active depends on the relevant backend configuration and implementation.
+
+### Authentication and user experience
+
+- Login and protected application areas, depending on the selected authentication configuration.
+- Dashboard summaries and visual analytics.
+- Loading, validation, and error feedback for supported requests.
+
+*Feature availability depends on the backend services and environment variables configured for the deployment. See the source code and [DEPLOYMENT.md](DEPLOYMENT.md) for the current deployment setup.*
+
+## Technology Stack
+
+| Layer | Technologies | Responsibility |
+|---|---|---|
+| Frontend | React 18, Vite, TypeScript, Tailwind CSS, React Router, Recharts, Axios | UI, routing, charts, and API requests |
+| API backend | Node.js, Express, TypeScript | REST API, request validation, orchestration, and service integrations |
+| Analytics | Python, Pandas/NumPy dependencies where implemented | Financial calculations and analysis modules |
+| AI | Google Gemini API | Natural-language explanations through the backend |
+| Data services | Firebase/Firestore, Supabase/PostgreSQL, optional Tiger Data/TimescaleDB | Authentication or application data, relational records, and time-series data depending on configuration |
+| Hosting | Vercel (frontend), Render (backend) | Web app and API hosting |
+| Optional voice integration | ElevenLabs API | Voice functionality when configured |
+
+## Architecture
+
+```text
+┌─────────────────────────────────────────┐
+│             React Frontend              │
+│   Dashboard · Loans · Credit Health      │
+│         AI Assistant · Charts            │
+└────────────────────┬────────────────────┘
+                     │ HTTPS / REST API
+                     ▼
+┌─────────────────────────────────────────┐
+│       Node.js + Express API              │
+│ Authentication · Validation · Routing   │
+│ Data services · Gemini API proxy         │
+└─────────┬───────────────┬───────────────┘
+          │               │
+          ▼               ▼
+┌────────────────┐  ┌─────────────────────┐
+│ Configured DBs  │  │ Analytics modules   │
+│ Firebase /      │  │ Python financial    │
+│ Supabase /      │  │ calculations and    │
+│ Tiger Data      │  │ analysis             │
+└────────────────┘  └─────────────────────┘
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  React Frontend (Vite + TypeScript + Tailwind)               │
-│  ├── Login + JWT Auth                                        │
-│  ├── Home Dashboard                                          │
-│  ├── EMI Management (CRUD)                                   │
-│  ├── Credit Health (Upload + Score)                          │
-│  └── Floating AI Assistant                                   │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ REST API (Axios)
-                           ▼
-┌──────────────────────────────────────────────────────────────┐
-│  Node.js + Express Backend (TypeScript)                      │
-│  ├── /api/auth/register, /api/auth/login, /api/auth/me       │
-│  ├── /api/loans (CRUD)                                       │
-│  ├── /api/emi/* (Calculate, Amortize, Aggregate)             │
-│  ├── /api/dashboard/summary                                  │
-│  ├── /api/credit-health/analyze + latest                     │
-│  └── /api/ai/chat (Gemini proxy)                             │
-└──────────────────────────┬───────────────────────────────────┘
-                           │
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-   ┌─────────┐       ┌──────────┐       ┌──────────┐
-   │Firestore│       │Analytics │       │  Gemini  │
-   │  (DB)   │       │  Engine  │       │   API    │
-   └─────────┘       │ (Python) │       └──────────┘
-                     └──────────┘
-```
 
----
+This diagram describes the intended service boundaries. Enable only the data providers and analytics routes that are implemented and configured in your deployment.
 
-## 🛠️ Tech Stack
+## Repository Structure
 
-### Frontend
-| Tech | Purpose |
-|------|---------|
-| **React 18 + Vite** | Fast SPA with HMR |
-| **TypeScript** | Type safety |
-| **Tailwind CSS 3** | Modern dark UI |
-| **React Router v6** | Client-side routing |
-| **Recharts** | Charts (bar, line, pie) |
-| **Axios** | HTTP client with JWT interceptor |
-
-### Backend
-| Tech | Purpose |
-|------|---------|
-| **Node.js + Express** | REST API |
-| **TypeScript** | Type safety |
-| **JWT (jsonwebtoken)** | Authentication |
-| **Firestore** | Persistent storage |
-| **Multer** | File upload handling |
-| **CORS + dotenv** | Config |
-
-### Analytics Engine
-| Tech | Purpose |
-|------|---------|
-| **Python 3.11+** | Core processing |
-| **Pandas + NumPy** | Numerical analysis |
-| **Custom modules** | EMI math, credit scoring, risk sim |
-| **Consolidation logic** | Loan consolidation |
-| **Transaction parsing** | Bank statement processing |
-
-### AI + Cloud + DevOps
-| Tech | Purpose |
-|------|---------|
-| **Google Gemini API** | AI chat |
-| **Cloud Run** | Backend runtime |
-| **Cloud Storage** | Statement uploads, PDF reports |
-| **Secret Manager** | JWT + Gemini secrets |
-| **Artifact Registry** | Container images |
-| **Cloud Build** | CI/CD pipeline |
-
----
-
-## 📁 Project Structure
-
-```
+```text
 Credimerge/
-├── Frontend/                          # React app
-│   ├── src/
-│   │   ├── api/                       # Axios client
-│   │   ├── components/                # Reusable UI
-│   │   ├── context/                   # Auth context
-│   │   ├── pages/                     # Route pages
-│   │   │   ├── Login.tsx
-│   │   │   ├── Home.tsx
-│   │   │   ├── EmiPage.tsx
-│   │   │   └── CreditHealth.tsx
-│   │   ├── types/                     # TS interfaces
-│   │   └── App.tsx
-│   ├── vercel.json
-│   └── package.json
-│
-├── Backend/                           # Node.js API
-│   ├── src/
-│   │   ├── config/
-│   │   ├── data/users.csv
-│   │   ├── middleware/auth.ts
-│   │   ├── services/
-│   │   │   ├── authService.ts
-│   │   │   ├── csvService.ts
-│   │   │   ├── emiService.ts
-│   │   │   ├── firestoreService.ts
-│   │   │   └── statementService.ts
-│   │   └── server.ts
-│   ├── .env.example
-│   └── package.json
-│
-├── analytics-engine/                  # Python engine
-│   ├── app/
-│   │   ├── common/
-│   │   ├── consolidation/
-│   │   ├── credit_health/
-│   │   ├── emi/
-│   │   ├── loans/
-│   │   ├── risk/
-│   │   └── transactions/
-│   ├── tests/
+├── Backend/                    # Node.js / Express API
+│   ├── src/                     # API, services, and configuration
+│   ├── services/                # Supporting backend services
+│   ├── tests/                   # Backend tests
+│   ├── .env.example             # Environment-variable template
+│   ├── supabase_schema.sql      # Supabase database schema
+│   └── tiger_schema.sql         # Tiger Data / TimescaleDB schema
+├── Frontend/                   # React + Vite application
+│   ├── src/                     # UI and client-side code
+│   ├── public/                  # Static assets
+│   └── .env.example             # Frontend environment template
+├── analytics-engine/           # Python analytics workspace
+│   ├── app/                     # Analytics modules
+│   ├── tests/                   # Analytics tests
 │   └── requirements.txt
-│
+├── docs/                       # Project documentation
+├── GigCred_synthetic_10_users.csv # Synthetic/demo dataset
+├── DEPLOYMENT.md               # Deployment instructions
+├── render.yaml                 # Render service configuration
+├── LICENSE
 └── README.md
 ```
 
----
-
-## 🚀 Local Setup
+## Getting Started
 
 ### Prerequisites
-- **Node.js 18+**
-- **Python 3.11+**
-- **Git**
-- **Firebase project** (for Firestore)
-- **Gemini API key** ([get one free](https://ai.dev))
 
-### 1. Clone Repository
+Install the following before running the project locally:
+
+- [Git](https://git-scm.com/)
+- [Node.js](https://nodejs.org/) (18 or later recommended)
+- npm (included with Node.js)
+- Python 3.11 or later if you are working with the analytics engine
+- Credentials for whichever data services and API integrations you intend to enable
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Bhupendra-glitch/Credimerge.git
 cd Credimerge
 ```
 
-### 2. Backend Setup
+### 2. Configure the backend
 
 ```bash
 cd Backend
 npm install
+```
+
+Create a local environment file by copying the template.
+
+**Windows PowerShell:**
+
+```powershell
+Copy-Item .env.example .env
+```
+
+**macOS / Linux:**
+
+```bash
 cp .env.example .env
 ```
 
-Edit `Backend/.env`:
+Open `Backend/.env` and set the variables required by the services you are using. At minimum, configure a strong `JWT_SECRET`, `FRONTEND_ORIGIN`, and the credentials needed by your selected database and AI integrations. See [Environment Variables](#environment-variables).
 
-```env
-PORT=5000
-JWT_SECRET=your_super_secret_key_here
-NODE_ENV=development
-GEMINI_API_KEY=your_google_gemini_api_key
-FRONTEND_ORIGIN=http://localhost:5173
-GOOGLE_APPLICATION_CREDENTIALS=./credentials/firebase-service-account.json
-ALLOW_DEMO_LOGIN=false
-FRONTEND_URL=http://localhost:5173
-SMTP_HOST=your-smtp-host
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your-smtp-username
-SMTP_PASSWORD=your-smtp-password
-SMTP_FROM=CrediMerge <no-reply@example.com>
-```
+### 3. Configure the frontend
 
-Download a Firebase Admin SDK service-account key from Firebase Console → Project settings → Service accounts and place it at `Backend/credentials/firebase-service-account.json`. The JSON file is a private credential and is ignored by Git; never commit or share it. The backend reads this path relative to its working directory at startup.
-
-Forgot-password emails require working SMTP credentials. The emailed link expires after 30 minutes and is single-use; configure `FRONTEND_URL` to your frontend origin before deploying.
-
-Run backend:
+In a second terminal:
 
 ```bash
-npm run dev
-```
-
-✅ Backend runs at `http://localhost:5000`
-
-### 3. Frontend Setup
-
-```bash
-cd ../Frontend
+cd Frontend
 npm install
 ```
 
-Create `Frontend/.env`:
+Create `Frontend/.env` using the provided example.
+
+**Windows PowerShell:**
+
+```powershell
+Copy-Item .env.example .env
+```
+
+**macOS / Linux:**
+
+```bash
+cp .env.example .env
+```
+
+By default, local development points the frontend to `http://localhost:5000`:
 
 ```env
 VITE_API_URL=http://localhost:5000
 ```
 
-Run frontend:
+### 4. Optional: prepare the Python analytics workspace
+
+```bash
+cd analytics-engine
+python -m venv .venv
+```
+
+Activate the environment:
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux:**
+
+```bash
+source .venv/bin/activate
+```
+
+Install the listed dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+The analytics workspace is evolving. Check `analytics-engine/README.md` and the tests before relying on a specific calculation or API.
+
+## Environment Variables
+
+Do not commit real credentials to Git. The following table lists common variables from `Backend/.env.example`; additional variables may be required by specific features.
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | Port used by the backend (local default: `5000`) |
+| `NODE_ENV` | Runtime environment, such as `development` or `production` |
+| `FRONTEND_ORIGIN` | Allowed frontend origin(s) for CORS |
+| `FRONTEND_URL` | Frontend URL used for password-reset links |
+| `JWT_SECRET` | Secret used to sign session tokens; use a long, random value |
+| `GEMINI_API_KEY` | Google Gemini API key; server-side only |
+| `ALLOW_DEMO_LOGIN` | Enables or disables the demo-login path, if implemented for the selected setup |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_ANON_KEY` | Supabase public/anon key, used only where applicable and with correct database access policies |
+| `SUPABASE_SERVICE_ROLE_KEY` | Privileged Supabase key; backend only, never expose publicly |
+| `TIGER_DATABASE_URL` | Tiger Data / TimescaleDB connection string; backend only |
+| `ELEVENLABS_API_KEY` | Optional ElevenLabs API key for voice features |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | SMTP settings for email features such as password resets |
+| `FINANCIAL_WEBHOOK_SECRET` | Secret used to validate configured financial webhooks; replace any example value with a strong unique secret |
+| `CONFIDENTIAL_COMPUTE_ENABLED`, `CONFIDENTIAL_PLATFORM` | Optional confidential-computing configuration |
+
+Firebase credentials may be provided through the environment or another supported Firebase Admin SDK configuration. See `DEPLOYMENT.md` and the backend configuration code for the required deployment-specific variables.
+
+**Frontend variables:** Only expose values intentionally designed to be public. In Vite, variables prefixed with `VITE_` are bundled into client-side code. Never place service-role keys, database passwords, JWT secrets, webhook secrets, or Gemini/ElevenLabs private API keys in frontend environment variables.
+
+## Running the Application
+
+Start the backend from the `Backend` directory:
 
 ```bash
 npm run dev
 ```
 
-✅ Frontend runs at `http://localhost:5173`
-
-### 4. Test Login
-
-Open `http://localhost:5173/register`, create an account, then sign in with its User ID and password. The backend must have valid Firestore credentials; account records are stored in Firestore and passwords are bcrypt-hashed.
-
-### 5. (Optional) Analytics Engine Setup
+Start the frontend from the `Frontend` directory in another terminal:
 
 ```bash
-cd ../analytics-engine
-python -m venv venv
-venv\Scripts\activate      # Windows
-# source venv/bin/activate  # Mac/Linux
-pip install -r requirements.txt
+npm run dev
 ```
 
----
+Vite normally serves the frontend at `http://localhost:5173`, while the backend uses port `5000` unless configured otherwise.
 
-## 📡 API Endpoints
+Check backend readiness at:
 
-| Method | Endpoint | Auth | Purpose |
-|--------|----------|------|---------|
-| POST | `/api/login` | ❌ | Login with User ID + password |
-| GET | `/api/me` | ✅ | Current user profile |
-| GET | `/api/loans` | ✅ | List user's loans |
-| POST | `/api/loans` | ✅ | Add new loan |
-| GET | `/api/loans/:id` | ✅ | Get loan details |
-| PUT | `/api/loans/:id` | ✅ | Update loan |
-| DELETE | `/api/loans/:id` | ✅ | Delete loan |
-| GET | `/api/dashboard/summary` | ✅ | Dashboard KPIs |
-| POST | `/api/emi/calculate` | ❌ | Calculate EMI |
-| POST | `/api/emi/amortization` | ❌ | Amortization schedule |
-| POST | `/api/emi/aggregate` | ❌ | Aggregate loans |
-| POST | `/api/credit-health/analyze` | ✅ | Analyze statement |
-| GET | `/api/credit-health/latest` | ✅ | Latest report |
-| POST | `/api/ai/chat` | ✅ | Gemini chat |
-| GET | `/api/reports/:id/download` | ✅ | PDF report |
-
-**Auth header:** `Authorization: Bearer <JWT_TOKEN>`
-
----
-
-## 🌐 Deployment
-
-### Frontend → Vercel
-
-1. Go to [vercel.com](https://vercel.com) → **New Project**
-2. Import GitHub repo: `Bhupendra-glitch/Credimerge`
-3. **Root Directory:** `Frontend`
-4. **Framework Preset:** Vite
-5. **Environment Variables:**
-   ```
-   VITE_API_URL=<your-backend-url>
-   ```
-6. **Deploy**
-
-### Backend → Render (or Cloud Run)
-
-**Render:**
-1. [render.com](https://render.com) → **New Web Service**
-2. Import repo, **Root Directory:** `Backend`
-3. **Build Command:** `npm install && npm run build`
-4. **Start Command:** `npm start`
-5. **Environment Variables:** (from `.env.example`)
-6. **Deploy**
-
-**Cloud Run (alternative):**
-```bash
-gcloud run deploy credimerge-api \
-  --source ./Backend \
-  --region asia-south1 \
-  --allow-unauthenticated
+```text
+http://localhost:5000/health
 ```
 
----
+If the app cannot reach the API, confirm that the backend is running, `VITE_API_URL` points to the correct API origin, CORS includes the frontend origin, and the backend environment variables are configured.
 
-## 🧪 Testing
+## Testing
 
-### Backend Health
+Run the backend test script from `Backend`:
+
 ```bash
-curl http://localhost:5000/
-# {"status":"ok","service":"CrediMerge API","version":"2.0"}
+npm test
 ```
 
-### Login Test
+Run the frontend tests from `Frontend`:
+
 ```bash
-curl -X POST http://localhost:5000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"GIG1001","password":"GIG1001@123"}'
+npm test
 ```
 
-### Frontend Build
+Build the frontend for production:
+
 ```bash
-cd Frontend
 npm run build
 ```
 
----
+Build the backend TypeScript code:
 
-## 📋 Development Roadmap
-
-- [x] Frontend UI (Login, Home, EMI, Credit Health)
-- [x] Backend endpoints (Auth, Loans CRUD, EMI math)
-- [x] Analytics engine (Python modules)
-- [x] Firestore integration
-- [x] JWT authentication
-- [x] Frontend ↔ Backend full data binding
-- [x] Gemini AI chat integration
-- [x] PDF report generation
-- [x] Income Twin Monte Carlo simulator
-
----
-
-## 🐯 Tiger Data Integration
-
-CrediMerge integrates **Tiger Data (Tiger Cloud / TimescaleDB PostgreSQL)** as its dedicated financial time-series storage and analytical engine.
-
-### Why CrediMerge Uses Tiger Data
-Traditional relational databases struggle with high-frequency time-series aggregations across hundreds of bank credits, debits, and balance points. Tiger Data combines standard PostgreSQL capabilities with TimescaleDB's native hypertables, offering:
-- **Partitioned Time-Series Hypertables**: Automated temporal chunking for fast transaction inserts and retrieval.
-- **Native `time_bucket` Aggregation**: Millisecond-level computation of daily, weekly, and monthly cash flow metrics.
-- **Analytical Velocity Modeling**: Real-time run-rate and volatility tracking for 30/60/90-day predictive forecasts.
-
-### Data Architecture Separation
-CrediMerge strictly partitions responsibilities across database tiers:
-- **Tiger Data (TimescaleDB)**:
-  - High-volume financial transactions (`financial_transactions` hypertable)
-  - Income and deposit history
-  - Expense and debit history
-  - Time-bucketed cash flow trends
-  - Balance trajectory and volatility metrics
-  - 30/60/90-day cash flow forecast data
-- **Supabase (PostgreSQL Relational)**:
-  - User accounts and identity profiles
-  - Loan applications and lender records
-  - Credit health assessment reports
-  - General relational business entities
-
-### Local Setup & Environment Configuration
-Tiger Data is connected **only** in the Node/Express backend (`Backend/.env`). It is **never** exposed to the React frontend or committed to GitHub.
-
-1. Add the connection string to `Backend/.env`:
-   ```env
-   # Tiger Data (TimescaleDB / Tiger Cloud)
-   TIGER_DATABASE_URL=postgres://USERNAME:PASSWORD@HOST:PORT/tsdb?sslmode=require
-   ```
-2. The backend connection pool automatically initializes the hypertable and compound indexes on startup (`Backend/tiger_schema.sql`).
-3. Verify connection health:
-   ```bash
-   curl http://localhost:5000/api/health/tiger
-   # {"success":true,"service":"tiger-data","database":"connected"}
-   ```
-
-### Database Schema (`financial_transactions`)
-```sql
-CREATE TABLE IF NOT EXISTS financial_transactions (
-    time TIMESTAMPTZ NOT NULL,
-    user_id TEXT NOT NULL,
-    transaction_id TEXT,
-    transaction_type TEXT NOT NULL,          -- 'CREDIT' | 'DEBIT' | 'TRANSFER'
-    category TEXT,                          -- 'SALARY', 'GROCERIES', 'BILLS', etc.
-    amount NUMERIC(15, 2) NOT NULL,
-    balance NUMERIC(15, 2),
-    description TEXT,
-    source TEXT DEFAULT 'MANUAL',           -- 'LIVE', 'SANDBOX', 'IMPORTED', 'MANUAL'
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- TimescaleDB Hypertable
-SELECT create_hypertable('financial_transactions', 'time', if_not_exists => TRUE, migrate_data => TRUE);
-
--- Compound Time-Series Indexes
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_user_time ON financial_transactions (user_id, time DESC);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_type ON financial_transactions (user_id, transaction_type, time DESC);
-CREATE INDEX IF NOT EXISTS idx_financial_transactions_category ON financial_transactions (user_id, category, time DESC);
+```bash
+npm run build
 ```
 
-### Tiger Data API Endpoints
+Run tests before deploying changes. Not every optional provider or external API can be tested without its credentials and a configured test environment.
 
-| Method | Endpoint | Auth | Purpose |
-|--------|----------|------|---------|
-| GET | `/api/health/tiger` | Public | Safe Tiger Data connectivity health status |
-| GET | `/api/financial/transactions/:userId` | ✅ Auth | Paginated time-series transactions for user |
-| POST | `/api/financial/transactions` | ✅ Auth | Record financial transaction into Tiger hypertable |
-| GET | `/api/financial/cashflow/:userId` | ✅ Auth | Daily, weekly, or monthly `time_bucket` cash flow |
-| GET | `/api/financial/income/:userId` | ✅ Auth | Historical credit / deposit stream |
-| GET | `/api/financial/expenses/:userId` | ✅ Auth | Historical debit / expense stream |
-| GET | `/api/financial/balance/:userId` | ✅ Auth | Balance trends over time |
-| GET | `/api/financial/forecast/:userId` | ✅ Auth | 30, 60, and 90-day predictive forecasts |
+## Deployment
 
-### Render Deployment Configuration
-The Node.js backend is deployed on Render.
-1. Open your Render Dashboard for the backend service (`credimerge-backend`).
-2. Navigate to **Environment Variables**.
-3. Add:
-   - **Key**: `TIGER_DATABASE_URL`
-   - **Value**: `postgres://USERNAME:PASSWORD@HOST:PORT/tsdb?sslmode=require`
-4. Deploy the service.
-5. **Never** add `TIGER_DATABASE_URL` to Vercel or frontend environments.
+The documented deployment pattern is:
 
-### Security Guarantees
-- **Zero Frontend Exposure**: The React frontend communicates strictly via Express REST API (`/api/financial/...`), never directly to Tiger Data.
-- **Strict User Authorization**: Users can only query and write to their own financial records; cross-user data queries return `403 Forbidden`.
-- **Parameterized Queries**: All SQL statements use parameterized place-holders (`$1, $2, ...`), preventing SQL injection.
-- **SSL Enforced**: TLS with SSL mode required for all Tiger Cloud connections.
-- **Sanitized Logging**: Credentials, passwords, and connection strings are masked from console outputs and health responses.
+- **Frontend:** Vercel, with the Vite project rooted at `Frontend/`.
+- **Backend:** Render, using the repository's `render.yaml` or a web service configured to use `Backend/` as its root directory.
+- **Database and external APIs:** Configure credentials in the backend hosting provider's environment-variable settings.
 
----
+### Vercel frontend
 
-## 👥 Team
+Set the production environment variable:
 
-| Member | Role | Ownership |
-|--------|------|-----------|
-| **Bhupendra Sahu** | Backend + Database | Express API, Firestore, JWT, CRUD, orchestration |
-| **Juhi Rathod** | Frontend Engineer | React UI, routing, data binding, API integration |
-| **Ankit Nayak** | Financial/Data Engine | Python (Pandas/NumPy), EMI math, credit scoring, risk simulation |
-| **Sheel Mrida** | AI + Cloud + DevOps | Gemini integration, Cloud Run, Storage, Secret Manager, CI/CD |
+```env
+VITE_API_URL=https://<your-backend-host>
+```
 
----
+Use the actual deployed backend URL, then redeploy the frontend.
 
-## 🔒 Security Notes
+### Render backend
 
-- ✅ JWT-based authentication with expiring tokens
-- ✅ Password hashing (bcrypt) — never plaintext
-- ✅ Gemini API key stored **server-side only**
-- ✅ CORS whitelist for production
-- ✅ Firestore rules restrict per-user data access
-- ✅ No secrets in Git (`.env` in `.gitignore`)
+Configure the required backend environment variables in the Render dashboard. Make sure `FRONTEND_ORIGIN` contains the exact production frontend origin(s), including `https://`. Keep all private credentials on the backend. Check the service's health endpoint after deployment.
 
----
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the repository-specific deployment steps and health-check URL.
 
-## ⚠️ Disclaimer
+## Data Services
 
-CrediMerge provides **alternative cashflow-based financial estimates** and is **NOT an official credit bureau or CIBIL score**. All calculations are for informational purposes only. Users should consult a licensed financial advisor before making major financial decisions.
+### Supabase / PostgreSQL
 
-The platform does not:
-- Store raw bank statements longer than necessary
-- Share user data with third parties
-- Guarantee loan approval or credit outcomes
+The repository includes `Backend/supabase_schema.sql` and Supabase client dependencies. Configure a project URL and appropriate credentials on the backend. Use least-privilege access and appropriate row-level security policies where applicable.
 
----
+### Tiger Data / TimescaleDB
 
-## 🙏 Acknowledgements
+The repository includes `Backend/tiger_schema.sql` and a `TIGER_DATABASE_URL` template for time-series transaction storage. Keep the connection string on the server, require encrypted connections where supported, and verify the current implementation before depending on an endpoint.
 
-- **Google Cloud** for Gemini API and Cloud Run infrastructure
-- **Firebase** for Firestore backend
-- **Vercel** for free frontend hosting
-- **Render** for free backend hosting
-- The open-source community
+### Firebase
 
----
+The backend and frontend include Firebase-related dependencies, and the deployment configuration includes Firebase settings. Use Firebase credentials for the features that rely on Firebase in the current configuration. Do not publish service-account keys or private-key values.
 
-## 📄 License
+The repository contains more than one data-provider integration. Decide which service owns each kind of record, configure only the intended services, and avoid maintaining inconsistent copies of the same user or transaction data.
 
-MIT License — see [LICENSE](LICENSE) for details.
+## Security
 
----
+Because the application may handle sensitive financial data:
 
-## 📞 Contact
+- Never commit `.env` files, private keys, service-account JSON files, database URLs, or API secrets.
+- Store server-side credentials in Render or another secret manager. Do not expose them through Vite `VITE_*` variables.
+- Rotate immediately any credentials that have been committed or shared accidentally.
+- Replace example webhook secrets and generate a unique, high-entropy secret for each environment.
+- Restrict CORS to known frontend origins.
+- Validate uploaded files, enforce size/type limits, and avoid retaining bank statements longer than necessary.
+- Authenticate protected API routes and authorize every record access against the current user.
+- Use parameterized database queries and least-privilege database credentials.
+- Avoid logging access tokens, raw bank data, passwords, or full connection strings.
+- Review database access policies and deployment settings before using real customer information.
 
-**Repository:** [github.com/Bhupendra-glitch/Credimerge](https://github.com/Bhupendra-glitch/Credimerge)
+Do not upload real bank statements or other sensitive personal information to a demo deployment unless its data handling, retention, and access controls have been reviewed.
 
-**Team:**
-- **Bhupendra Sahu** — Backend & Database
-- **Juhi Rathod** — Frontend Engineering
-- **Ankit Nayak** — Financial/Data Engine
-- **Sheel Mrida** — AI, Cloud & DevOps
+## Roadmap
+
+- [ ] Finish and validate the end-to-end analytics workflows.
+- [ ] Add integration tests for authentication, data isolation, and external services.
+- [ ] Verify a single source of truth for user, loan, and transaction data across configured providers.
+- [ ] Improve audit logging, retention controls, and security documentation.
+- [ ] Continue improving cash-flow forecasting and explainable financial insights.
+- [ ] Explore a mobile app after the backend API and authentication flows are stable.
+
+
+
+## License
+
+This project is distributed under the MIT License. See [LICENSE](LICENSE) for details.
+
+## Disclaimer
+
+CrediMerge is a project for financial analysis and decision support. It does not provide an official credit score, guarantee creditworthiness, offer loans, or guarantee any lending outcome. Verify all calculations and terms independently, and consult a qualified financial professional before making significant financial decisions.
 
 ---
 
-⭐ **If you find CrediMerge useful, please star the repo!**
+If you find this project useful, consider starring the [repository](https://github.com/Bhupendra-glitch/Credimerge) ⭐
