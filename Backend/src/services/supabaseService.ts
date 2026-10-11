@@ -26,6 +26,7 @@ const localLoans = new Map<string, LoanRecord[]>();
 const localVerificationCodes = new Map<string, { code: string; expiresAt: number }>();
 const localResetTokens = new Map<string, { userId: string; expiresAt: number }>();
 const localCreditReports = new Map<string, any[]>();
+const localSandboxVerifications = new Map<string, SandboxVerificationRecord[]>();
 
 function getDemoUser(userId: string): Record<string, any> | null {
   if (process.env.ALLOW_DEMO_LOGIN !== 'true') return null;
@@ -226,6 +227,8 @@ export async function getUserProfile(userId: string) {
   const normalizedId = userId.trim().toUpperCase();
   const supabase = getSupabase();
 
+  let userRecord: Record<string, any> | null = null;
+
   if (supabase) {
     try {
       const { data, error } = await supabase
@@ -235,23 +238,46 @@ export async function getUserProfile(userId: string) {
         .maybeSingle();
 
       if (!error && data) {
-        return sanitizeUser(normalizeUser(data));
+        userRecord = sanitizeUser(normalizeUser(data));
       }
     } catch (error) {
       console.warn('Supabase profile query failed; using fallback:', error instanceof Error ? error.message : error);
     }
   }
 
-  const local = localUsers.get(normalizedId);
-  if (local) return sanitizeUser(local);
-
-  if (/^GIG10\d{2}$/i.test(normalizedId)) {
-    const demo = getDemoUser(normalizedId);
-    if (demo) return sanitizeUser(demo);
+  if (!userRecord) {
+    const local = localUsers.get(normalizedId);
+    if (local) userRecord = sanitizeUser(local);
   }
 
-  return null;
+  if (!userRecord && /^GIG10\d{2}$/i.test(normalizedId)) {
+    const demo = getDemoUser(normalizedId);
+    if (demo) userRecord = sanitizeUser(demo);
+  }
+
+  if (!userRecord) return null;
+
+  try {
+    const verifications = await getSandboxVerifications(normalizedId);
+    const isPanVerified = verifications.some((v) => (v.verificationType === 'PAN' || v.verification_type === 'PAN') && v.status === 'VERIFIED');
+    const isGstVerified = verifications.some((v) => (v.verificationType === 'GST' || v.verification_type === 'GST') && v.status === 'VERIFIED');
+    const isBankVerified = verifications.some((v) => (v.verificationType === 'BANK_ACCOUNT' || v.verification_type === 'BANK_ACCOUNT') && v.status === 'VERIFIED');
+
+    return {
+      ...userRecord,
+      verification_signals: {
+        pan_verified: isPanVerified,
+        gst_verified: isGstVerified,
+        bank_verified: isBankVerified,
+        total_verified: (isPanVerified ? 1 : 0) + (isGstVerified ? 1 : 0) + (isBankVerified ? 1 : 0),
+        trust_tier: isPanVerified && isBankVerified ? 'VERIFIED_FINANCIAL_PROFILE' : isPanVerified ? 'IDENTITY_VERIFIED' : 'UNVERIFIED',
+      },
+    };
+  } catch {
+    return userRecord;
+  }
 }
+
 
 export async function getUserAuthRecord(identifier: string) {
   const normalized = identifier.trim();
@@ -805,3 +831,141 @@ export async function getLatestCreditReport(userId: string) {
   const reports = localCreditReports.get(normalizedId);
   return reports && reports.length > 0 ? reports[0] : null;
 }
+
+export interface SandboxVerificationRecord {
+  id: string;
+  userId: string;
+  user_id?: string;
+  verificationType: 'PAN' | 'GST' | 'BANK_ACCOUNT';
+  verification_type?: 'PAN' | 'GST' | 'BANK_ACCOUNT';
+  status: 'VERIFIED' | 'FAILED' | 'PENDING';
+  referenceId?: string;
+  reference_id?: string;
+  provider: string;
+  maskedIdentifier?: string;
+  masked_identifier?: string;
+  metadata?: Record<string, any>;
+  createdAt?: string;
+  created_at?: string;
+  updatedAt?: string;
+  updated_at?: string;
+}
+
+export async function saveSandboxVerification(
+  verification: SandboxVerificationRecord
+): Promise<SandboxVerificationRecord> {
+  const normUserId = (verification.userId || verification.user_id || '').trim().toUpperCase();
+  const id = verification.id || `sbx_ver_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const now = new Date().toISOString();
+
+  const record: SandboxVerificationRecord = {
+    ...verification,
+    id,
+    userId: normUserId,
+    user_id: normUserId,
+    verificationType: verification.verificationType || verification.verification_type || 'PAN',
+    verification_type: verification.verificationType || verification.verification_type || 'PAN',
+    status: verification.status || 'VERIFIED',
+    referenceId: verification.referenceId || verification.reference_id,
+    reference_id: verification.referenceId || verification.reference_id,
+    provider: verification.provider || 'SANDBOX',
+    maskedIdentifier: verification.maskedIdentifier || verification.masked_identifier,
+    masked_identifier: verification.maskedIdentifier || verification.masked_identifier,
+    metadata: verification.metadata || {},
+    createdAt: verification.createdAt || verification.created_at || now,
+    created_at: verification.createdAt || verification.created_at || now,
+    updatedAt: now,
+    updated_at: now,
+  };
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('sandbox_verifications')
+        .upsert({
+          id: record.id,
+          user_id: record.user_id,
+          verification_type: record.verification_type,
+          status: record.status,
+          reference_id: record.reference_id,
+          provider: record.provider,
+          masked_identifier: record.masked_identifier,
+          metadata: record.metadata,
+          created_at: record.created_at,
+          updated_at: record.updated_at,
+        })
+        .select()
+        .single();
+
+      if (!error && data) {
+        return {
+          id: data.id,
+          userId: data.user_id,
+          user_id: data.user_id,
+          verificationType: data.verification_type,
+          verification_type: data.verification_type,
+          status: data.status,
+          referenceId: data.reference_id,
+          reference_id: data.reference_id,
+          provider: data.provider,
+          maskedIdentifier: data.masked_identifier,
+          masked_identifier: data.masked_identifier,
+          metadata: data.metadata,
+          createdAt: data.created_at,
+          created_at: data.created_at,
+          updatedAt: data.updated_at,
+          updated_at: data.updated_at,
+        };
+      }
+    } catch (err) {
+      console.warn('Supabase saveSandboxVerification error:', err);
+    }
+  }
+
+  const existing = localSandboxVerifications.get(normUserId) || [];
+  const updatedList = [record, ...existing.filter((v) => v.id !== record.id)];
+  localSandboxVerifications.set(normUserId, updatedList);
+  return record;
+}
+
+export async function getSandboxVerifications(userId: string): Promise<SandboxVerificationRecord[]> {
+  const normUserId = userId.trim().toUpperCase();
+  const supabase = getSupabase();
+
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('sandbox_verifications')
+        .select('*')
+        .eq('user_id', normUserId)
+        .order('created_at', { ascending: false });
+
+      if (!error && Array.isArray(data)) {
+        return data.map((d) => ({
+          id: d.id,
+          userId: d.user_id,
+          user_id: d.user_id,
+          verificationType: d.verification_type,
+          verification_type: d.verification_type,
+          status: d.status,
+          referenceId: d.reference_id,
+          reference_id: d.reference_id,
+          provider: d.provider,
+          maskedIdentifier: d.masked_identifier,
+          masked_identifier: d.masked_identifier,
+          metadata: d.metadata,
+          createdAt: d.created_at,
+          created_at: d.created_at,
+          updatedAt: d.updated_at,
+          updated_at: d.updated_at,
+        }));
+      }
+    } catch (err) {
+      console.warn('Supabase getSandboxVerifications error:', err);
+    }
+  }
+
+  return localSandboxVerifications.get(normUserId) || [];
+}
+

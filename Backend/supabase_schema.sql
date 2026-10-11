@@ -214,3 +214,26 @@ CREATE POLICY "Allow all access on transactions" ON public.transactions FOR ALL 
 
 DROP POLICY IF EXISTS "Allow all access on tee_computation_logs" ON public.tee_computation_logs;
 CREATE POLICY "Allow all access on tee_computation_logs" ON public.tee_computation_logs FOR ALL USING (true) WITH CHECK (true);
+
+-- 10. Sandbox Identity & Financial Verifications Table
+CREATE TABLE IF NOT EXISTS public.sandbox_verifications (
+  id TEXT PRIMARY KEY,
+  user_id VARCHAR(50) NOT NULL REFERENCES public.users(user_id) ON DELETE CASCADE,
+  verification_type VARCHAR(50) NOT NULL CHECK (verification_type IN ('PAN', 'GST', 'BANK_ACCOUNT')),
+  status VARCHAR(50) NOT NULL CHECK (status IN ('VERIFIED', 'FAILED', 'PENDING')),
+  reference_id TEXT,
+  provider VARCHAR(50) NOT NULL DEFAULT 'SANDBOX',
+  masked_identifier VARCHAR(100),
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_sandbox_verifications_user ON public.sandbox_verifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_sandbox_verifications_type ON public.sandbox_verifications(verification_type);
+CREATE INDEX IF NOT EXISTS idx_sandbox_verifications_status ON public.sandbox_verifications(status);
+
+ALTER TABLE public.sandbox_verifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all access on sandbox_verifications" ON public.sandbox_verifications;
+CREATE POLICY "Allow all access on sandbox_verifications" ON public.sandbox_verifications FOR ALL USING (true) WITH CHECK (true);
+

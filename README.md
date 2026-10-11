@@ -21,6 +21,7 @@ CrediMerge is a financial decision-support platform designed to help gig workers
 
 - [Overview](#overview)
 - [Features](#features)
+- [Sandbox Integration](#sandbox-integration)
 - [Technology Stack](#technology-stack)
 - [Architecture](#architecture)
 - [Repository Structure](#repository-structure)
@@ -80,6 +81,14 @@ The application separates the user interface, API/orchestration layer, and finan
 
 - Optional Tiger Data / TimescaleDB integration is intended for transaction history and time-based cash-flow analysis.
 - Supabase/PostgreSQL and Firebase-related dependencies are present in the repository. Which persistence path is active depends on the relevant backend configuration and implementation.
+
+### Sandbox Integration
+
+- **Sandbox.co.in TEST API**: Real-time government and banking verification (PAN, GSTIN, and Penny Drop bank account validation).
+- **Tiger Data Connected**: Time-series audit stream (`sandbox_verification_events` hypertable) logging all verification events for compliance and risk tracking.
+- **Supabase Persistence**: Stores masked verification records and enriches user financial profiles with verified trust signals.
+- **Zero Secret Exposure**: Strict separation between frontend and backend; all Sandbox credentials reside exclusively on the backend.
+- Detailed architecture and migration instructions: [SANDBOX_INTEGRATION.md](SANDBOX_INTEGRATION.md).
 
 ### Authentication and user experience
 

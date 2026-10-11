@@ -53,14 +53,14 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const crypto_1 = require("crypto");
 const dotenv_1 = __importDefault(require("dotenv"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
-const firestoreService_1 = require("./firestoreService");
+const supabaseService_1 = require("./supabaseService");
 dotenv_1.default.config();
 const JWT_SECRET = process.env.JWT_SECRET || (() => {
     throw new Error('JWT_SECRET is required');
 })();
 const resetPasswordMessage = 'If an account exists for that email, a password reset link has been sent.';
 async function login(userId, password) {
-    const user = await (0, firestoreService_1.getUserAuthRecord)(userId.trim());
+    const user = await (0, supabaseService_1.getUserAuthRecord)(userId.trim());
     if (!user)
         throw new Error('Invalid email/User ID or password.');
     let ok = false;
@@ -92,7 +92,7 @@ async function changePassword(userId, currentPassword, newPassword, confirmPassw
         throw new Error('Current password is required.');
     if (currentPassword === newPassword)
         throw new Error('Choose a password different from your current password.');
-    const user = await (0, firestoreService_1.getUserAuthRecord)(userId);
+    const user = await (0, supabaseService_1.getUserAuthRecord)(userId);
     if (!user)
         throw new Error('User account was not found.');
     const currentPasswordMatches = user.passwordHash
@@ -101,7 +101,7 @@ async function changePassword(userId, currentPassword, newPassword, confirmPassw
     if (!currentPasswordMatches)
         throw new Error('Current password is incorrect.');
     const passwordHash = await bcryptjs_1.default.hash(newPassword, 12);
-    const updated = await (0, firestoreService_1.updateUserPassword)(userId, passwordHash);
+    const updated = await (0, supabaseService_1.updateUserPassword)(userId, passwordHash);
     if (!updated)
         throw new Error('Password changes are unavailable for demo accounts.');
 }
@@ -141,44 +141,46 @@ async function registerUser({ email, password, fullName, workerType, }) {
         throw new Error('Enter your full name (at least 2 characters).');
     }
     validatePasswordStrength(password);
-    const existing = await (0, firestoreService_1.getUserAuthRecord)(normalizedEmail);
+    const existing = await (0, supabaseService_1.getUserAuthRecord)(normalizedEmail);
     if (existing) {
         throw new Error('An account with this email address already exists. Please log in.');
     }
     const passwordHash = await bcryptjs_1.default.hash(password, 12);
     const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const userId = `GIG${Date.now().toString().slice(-4)}${randomSuffix}`;
+    const userId = `USR_${Date.now().toString().slice(-6)}${randomSuffix}`;
     const defaultFinancials = {
         userId,
         user_id: userId,
         fullName: fullName.trim(),
         email: normalizedEmail,
-        worker_type: workerType || 'Delivery Partner',
+        worker_type: workerType || 'Individual',
         passwordHash,
         emailVerified: false,
-        age: 28,
-        monthly_income: 42000,
-        income_stability_score: 0.72,
-        monthly_expenses: 24000,
-        monthly_savings: 12000,
-        existing_debt: 28000,
-        monthly_emi: 2200,
-        credit_card_balance: 14000,
-        bnpl_balance: 5000,
+        age: 26,
+        monthly_income: 0,
+        income_stability_score: 0.8,
+        monthly_expenses: 0,
+        monthly_savings: 0,
+        existing_debt: 0,
+        monthly_emi: 0,
+        credit_card_balance: 0,
+        bnpl_balance: 0,
         vehicle_loan_outstanding: 0,
-        active_loan_count: 1,
-        repayment_rate: 0.88,
+        active_loan_count: 0,
+        repayment_rate: 1.0,
         missed_payments_12m: 0,
-        foir_pct: 5.24,
-        monthly_cashflow: 18000,
-        cashflow_score: 68.5,
-        risk_band: 'Low Risk',
-        forecast_30d_cashflow: 16200,
-        forecast_60d_cashflow: 16500,
-        forecast_90d_cashflow: 16800,
+        foir_pct: 0,
+        monthly_cashflow: 0,
+        emergency_expense: 0,
+        income_drop_scenario_pct: 0,
+        cashflow_score: 0,
+        risk_band: 'Unassessed',
+        forecast_30d_cashflow: 0,
+        forecast_60d_cashflow: 0,
+        forecast_90d_cashflow: 0,
         createdAt: new Date().toISOString(),
     };
-    const { createOrUpdateUser, storeEmailVerificationCode } = await Promise.resolve().then(() => __importStar(require('./firestoreService')));
+    const { createOrUpdateUser, storeEmailVerificationCode } = await Promise.resolve().then(() => __importStar(require('./supabaseService')));
     await createOrUpdateUser(defaultFinancials);
     // Generate 6-digit OTP code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -216,7 +218,7 @@ async function registerUser({ email, password, fullName, workerType, }) {
 }
 async function verifyEmailCode(email, code) {
     const normalizedEmail = email.trim().toLowerCase();
-    const { verifyEmailCodeRecord, getUserAuthRecord, createOrUpdateUser } = await Promise.resolve().then(() => __importStar(require('./firestoreService')));
+    const { verifyEmailCodeRecord, getUserAuthRecord, createOrUpdateUser } = await Promise.resolve().then(() => __importStar(require('./supabaseService')));
     const isValid = await verifyEmailCodeRecord(normalizedEmail, code.trim());
     if (!isValid) {
         throw new Error('Invalid or expired verification code. Please check and try again.');
@@ -239,7 +241,7 @@ async function verifyEmailCode(email, code) {
 }
 async function resendVerificationCode(email) {
     const normalizedEmail = email.trim().toLowerCase();
-    const { getUserAuthRecord, storeEmailVerificationCode } = await Promise.resolve().then(() => __importStar(require('./firestoreService')));
+    const { getUserAuthRecord, storeEmailVerificationCode } = await Promise.resolve().then(() => __importStar(require('./supabaseService')));
     const user = await getUserAuthRecord(normalizedEmail);
     if (!user) {
         throw new Error('No account found with this email address.');
@@ -280,40 +282,40 @@ async function googleLogin(payload) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
         throw new Error('A valid email is required for Google Sign-In.');
     }
-    const { getUserAuthRecord, createOrUpdateUser } = await Promise.resolve().then(() => __importStar(require('./firestoreService')));
+    const { getUserAuthRecord, createOrUpdateUser } = await Promise.resolve().then(() => __importStar(require('./supabaseService')));
     let user = await getUserAuthRecord(normalizedEmail);
     if (!user) {
         const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-        const userId = `GOOG${Date.now().toString().slice(-4)}${randomSuffix}`;
+        const userId = `GOOG_${Date.now().toString().slice(-6)}${randomSuffix}`;
         user = {
             userId,
             user_id: userId,
             fullName: payload.name || normalizedEmail.split('@')[0],
             email: normalizedEmail,
             profilePhoto: payload.picture || null,
-            worker_type: 'Gig Worker',
+            worker_type: 'Individual',
             emailVerified: true,
             authProvider: 'google',
-            age: 30,
-            monthly_income: 45000,
-            income_stability_score: 0.78,
-            monthly_expenses: 25000,
-            monthly_savings: 14000,
-            existing_debt: 22000,
-            monthly_emi: 1800,
-            credit_card_balance: 11000,
-            bnpl_balance: 3000,
+            age: 26,
+            monthly_income: 0,
+            income_stability_score: 0.8,
+            monthly_expenses: 0,
+            monthly_savings: 0,
+            existing_debt: 0,
+            monthly_emi: 0,
+            credit_card_balance: 0,
+            bnpl_balance: 0,
             vehicle_loan_outstanding: 0,
-            active_loan_count: 1,
-            repayment_rate: 0.92,
+            active_loan_count: 0,
+            repayment_rate: 1.0,
             missed_payments_12m: 0,
-            foir_pct: 4.0,
-            monthly_cashflow: 20000,
-            cashflow_score: 72.0,
-            risk_band: 'Low Risk',
-            forecast_30d_cashflow: 18000,
-            forecast_60d_cashflow: 18300,
-            forecast_90d_cashflow: 18600,
+            foir_pct: 0,
+            monthly_cashflow: 0,
+            cashflow_score: 0,
+            risk_band: 'Unassessed',
+            forecast_30d_cashflow: 0,
+            forecast_60d_cashflow: 0,
+            forecast_90d_cashflow: 0,
             createdAt: new Date().toISOString(),
         };
         await createOrUpdateUser(user);
@@ -345,14 +347,14 @@ async function requestPasswordReset(email) {
         throw new Error('Enter a valid email address.');
     }
     const mailer = getPasswordResetMailer();
-    const user = await (0, firestoreService_1.getUserAuthRecord)(normalizedEmail);
+    const user = await (0, supabaseService_1.getUserAuthRecord)(normalizedEmail);
     if (!user || typeof user.email !== 'string' || user.email.toLowerCase() !== normalizedEmail) {
         return { message: resetPasswordMessage };
     }
     const rawToken = (0, crypto_1.randomBytes)(32).toString('hex');
     const tokenHash = (0, crypto_1.createHash)('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
-    await (0, firestoreService_1.createPasswordResetToken)(user.userId || user.user_id, tokenHash, expiresAt);
+    await (0, supabaseService_1.createPasswordResetToken)(user.userId || user.user_id, tokenHash, expiresAt);
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
     const resetUrl = `${frontendUrl}/reset-password?token=${encodeURIComponent(rawToken)}`;
     if (mailer) {
@@ -385,7 +387,7 @@ async function resetPassword(rawToken, newPassword, confirmPassword) {
     }
     const tokenHash = (0, crypto_1.createHash)('sha256').update(rawToken).digest('hex');
     const passwordHash = await bcryptjs_1.default.hash(newPassword, 12);
-    const updated = await (0, firestoreService_1.consumePasswordResetToken)(tokenHash, passwordHash);
+    const updated = await (0, supabaseService_1.consumePasswordResetToken)(tokenHash, passwordHash);
     if (!updated)
         throw new Error('This password reset link is invalid or expired. Request a new one.');
 }

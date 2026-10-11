@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateFinancialAdvice = generateFinancialAdvice;
-const firestoreService_1 = require("./firestoreService");
+const supabaseService_1 = require("./supabaseService");
 async function generateFinancialAdvice(userId, message) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!apiKey) {
@@ -10,7 +10,7 @@ async function generateFinancialAdvice(userId, message) {
     if (apiKey.trim().length < 10) {
         throw new Error('Invalid Gemini API key format. Set a valid Google AI Studio API key in GEMINI_API_KEY.');
     }
-    const user = (await (0, firestoreService_1.getUserProfile)(userId));
+    const user = (await (0, supabaseService_1.getUserProfile)(userId));
     const profile = user ? [
         `User ID: ${user.userId ?? user.user_id ?? 'N/A'}`,
         `Monthly income: ₹${Number(user.monthly_income ?? 0).toLocaleString('en-IN')}`,

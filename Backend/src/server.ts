@@ -73,6 +73,7 @@ import {
   getBalanceHistory,
   getForecastingData,
 } from './services/tigerDataService';
+import sandboxRouter from './routes/sandboxRoutes';
 
 dotenv.config();
 
@@ -109,6 +110,9 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(standardRateLimiter);
+
+// Dedicated Sandbox.co.in Verification Router (TEST / SANDBOX Environment)
+app.use('/api/sandbox', sandboxRouter);
 
 app.get('/', (_req, res) => {
   res.json({ status: 'ok', service: 'CrediMerge API', version: '2.0' });

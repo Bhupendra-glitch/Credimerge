@@ -243,7 +243,24 @@ export const api = {
 
   getFinancialForecast: (userId: string) =>
     client.get(`/api/financial/forecast/${userId}`),
+
+  // Sandbox.co.in Identity & Financial Verification (TEST / SANDBOX Environment)
+  getSandboxStatus: () =>
+    client.get('/api/sandbox/status'),
+
+  getSandboxVerifications: () =>
+    client.get('/api/sandbox/verifications'),
+
+  verifyPAN: (data: { pan: string; nameAsPerPan?: string; dateOfBirth?: string }) =>
+    client.post('/api/sandbox/pan/verify', data),
+
+  verifyGST: (data: { gstin: string }) =>
+    client.post('/api/sandbox/gst/verify', data),
+
+  verifyBankAccount: (data: { accountNumber: string; ifsc: string }) =>
+    client.post('/api/sandbox/bank-account/verify', data),
 };
+
 
 export default client;
 

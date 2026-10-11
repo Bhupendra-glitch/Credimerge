@@ -7,6 +7,7 @@ import FloatingAI from '../components/FloatingAI';
 import ConsolidationSimulator from '../components/ConsolidationSimulator';
 import NotificationSection from '../components/NotificationSection';
 import AddLoanModal from '../components/AddLoanModal';
+import IdentityVerification from '../components/IdentityVerification';
 import { api, buildProfileLoanFallback } from '../api/client';
 import { Loan, TransactionSummary } from '../types';
 
@@ -314,6 +315,11 @@ export default function Home() {
               </div>
             )}
           </div>
+        </section>
+
+        {/* IDENTITY & FINANCIAL VERIFICATION (SANDBOX.CO.IN & TIGER DATA) */}
+        <section className="mt-8">
+          <IdentityVerification />
         </section>
 
         {/* NOTIFICATIONS & INTELLIGENCE ALERTS */}

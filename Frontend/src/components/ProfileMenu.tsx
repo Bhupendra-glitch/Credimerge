@@ -3,12 +3,14 @@ import { createPortal } from 'react-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Loan } from '../types';
+import IdentityVerification from './IdentityVerification';
 
-type ProfilePanel = 'profile' | 'settings' | 'password' | 'financial';
+type ProfilePanel = 'profile' | 'settings' | 'password' | 'financial' | 'verification';
 type ProfileDraft = { fullName: string; email: string; phone: string };
 
 const menuItems: Array<{ panel: ProfilePanel; label: string; icon: string }> = [
   { panel: 'profile', label: 'Profile', icon: '👤' },
+  { panel: 'verification', label: 'Identity & Verification', icon: '🛡️' },
   { panel: 'settings', label: 'Account Settings', icon: '⚙️' },
   { panel: 'password', label: 'Change Password', icon: '🔐' },
   { panel: 'financial', label: 'Financial Profile', icon: '📊' },
@@ -457,6 +459,12 @@ export default function ProfileMenu({ onLogout }: { onLogout: () => void }) {
                   <FinancialMetric label="Total monthly EMI" value={formatMoney(totalEmi)} />
                   {Number.isFinite(user.cashflow_score) && <FinancialMetric label="CrediMerge health score" value={`${user.cashflow_score}/100`} detail="Cash-flow estimate, not a bureau score" />}
                 </div>
+              </div>
+            )}
+
+            {panel === 'verification' && (
+              <div className="p-4 sm:p-6">
+                <IdentityVerification />
               </div>
             )}
           </section>

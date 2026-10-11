@@ -423,3 +423,110 @@ export async function getForecastingData(userId: string): Promise<FinancialForec
     riskBand,
   };
 }
+
+export interface VerificationEventInput {
+  userId: string;
+  verificationType: 'PAN' | 'GST' | 'BANK_ACCOUNT';
+  status: 'VERIFIED' | 'FAILED';
+  referenceId?: string;
+  maskedIdentifier?: string;
+  nameMatched?: boolean;
+  source?: string;
+  metadata?: Record<string, any>;
+  time?: string | Date;
+}
+
+export interface VerificationEvent {
+  time: string;
+  user_id: string;
+  verification_type: string;
+  status: string;
+  reference_id: string | null;
+  masked_identifier: string | null;
+  name_matched: boolean;
+  source: string;
+  metadata: Record<string, any> | null;
+  created_at: string;
+}
+
+const memoryVerificationEvents: VerificationEvent[] = [];
+
+/**
+ * Records a verification event into Tiger Data TimescaleDB hypertable for compliance & audit
+ */
+export async function recordVerificationEvent(
+  input: VerificationEventInput
+): Promise<VerificationEvent> {
+  const normUserId = input.userId.trim().toUpperCase();
+  const timestamp = input.time ? new Date(input.time).toISOString() : new Date().toISOString();
+  const event: VerificationEvent = {
+    time: timestamp,
+    user_id: normUserId,
+    verification_type: input.verificationType,
+    status: input.status,
+    reference_id: input.referenceId || null,
+    masked_identifier: input.maskedIdentifier || null,
+    name_matched: input.nameMatched ?? true,
+    source: input.source || 'SANDBOX_TEST',
+    metadata: input.metadata || null,
+    created_at: timestamp,
+  };
+
+  if (isTigerConfigured()) {
+    try {
+      const sql = `
+        INSERT INTO sandbox_verification_events (
+          time, user_id, verification_type, status, reference_id,
+          masked_identifier, name_matched, source, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *
+      `;
+      const rows = await queryTiger<VerificationEvent>(sql, [
+        event.time,
+        event.user_id,
+        event.verification_type,
+        event.status,
+        event.reference_id,
+        event.masked_identifier,
+        event.name_matched,
+        event.source,
+        event.metadata ? JSON.stringify(event.metadata) : null,
+        event.created_at,
+      ]);
+
+      if (rows && rows.length > 0) {
+        return rows[0];
+      }
+    } catch (err: any) {
+      console.warn('⚠️ [Tiger Data] Fallback for verification event insert:', err.message);
+    }
+  }
+
+  memoryVerificationEvents.unshift(event);
+  return event;
+}
+
+/**
+ * Retrieves verification events history from Tiger Data
+ */
+export async function getVerificationEvents(userId: string): Promise<VerificationEvent[]> {
+  const normUserId = userId.trim().toUpperCase();
+
+  if (isTigerConfigured()) {
+    try {
+      const sql = `
+        SELECT * FROM sandbox_verification_events
+        WHERE user_id = $1
+        ORDER BY time DESC
+        LIMIT 50
+      `;
+      const rows = await queryTiger<VerificationEvent>(sql, [normUserId]);
+      return rows || [];
+    } catch (err: any) {
+      console.warn('⚠️ [Tiger Data] Fallback for getVerificationEvents:', err.message);
+    }
+  }
+
+  return memoryVerificationEvents.filter((e) => e.user_id === normUserId);
+}
+

@@ -44,3 +44,33 @@ CREATE INDEX IF NOT EXISTS idx_financial_transactions_category
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_financial_transactions_unique_tx
     ON financial_transactions (user_id, transaction_id, time);
+
+-- 5. Create sandbox_verification_events table for verification audit trail & risk signals
+CREATE TABLE IF NOT EXISTS sandbox_verification_events (
+    time TIMESTAMPTZ NOT NULL,
+    user_id TEXT NOT NULL,
+    verification_type TEXT NOT NULL,       -- 'PAN' | 'GST' | 'BANK_ACCOUNT'
+    status TEXT NOT NULL,                  -- 'VERIFIED' | 'FAILED'
+    reference_id TEXT,
+    masked_identifier TEXT,
+    name_matched BOOLEAN DEFAULT true,
+    source TEXT DEFAULT 'SANDBOX_TEST',
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Convert into TimescaleDB Hypertable partitioned by time
+SELECT create_hypertable(
+    'sandbox_verification_events',
+    'time',
+    if_not_exists => TRUE,
+    migrate_data => TRUE
+);
+
+-- 7. High-performance time-series indexes for verification streams
+CREATE INDEX IF NOT EXISTS idx_sandbox_verification_user_time 
+    ON sandbox_verification_events (user_id, time DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sandbox_verification_type_status 
+    ON sandbox_verification_events (user_id, verification_type, status, time DESC);
+

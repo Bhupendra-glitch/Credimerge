@@ -158,8 +158,46 @@ export async function initTigerDatabase(): Promise<boolean> {
           ON financial_transactions (user_id, transaction_id, time);
       `);
 
+      // Create sandbox_verification_events table for verification audit trail & risk signals
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS sandbox_verification_events (
+          time TIMESTAMPTZ NOT NULL,
+          user_id TEXT NOT NULL,
+          verification_type TEXT NOT NULL,
+          status TEXT NOT NULL,
+          reference_id TEXT,
+          masked_identifier TEXT,
+          name_matched BOOLEAN DEFAULT true,
+          source TEXT DEFAULT 'SANDBOX_TEST',
+          metadata JSONB,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+
+      try {
+        await client.query(`
+          SELECT create_hypertable(
+            'sandbox_verification_events',
+            'time',
+            if_not_exists => TRUE,
+            migrate_data => TRUE
+          );
+        `);
+      } catch (htErr: any) {
+        if (!htErr.message?.includes('already a hypertable')) {
+          console.log('ℹ️ [Tiger Data] Hypertable status (verifications):', htErr.message);
+        }
+      }
+
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_sandbox_verification_user_time 
+          ON sandbox_verification_events (user_id, time DESC);
+        CREATE INDEX IF NOT EXISTS idx_sandbox_verification_type_status 
+          ON sandbox_verification_events (user_id, verification_type, status, time DESC);
+      `);
+
       schemaInitialized = true;
-      console.log('🐯 [Tiger Data] Financial transactions hypertable & indexes initialized');
+      console.log('🐯 [Tiger Data] Financial transactions & verification hypertables initialized');
       return true;
     } finally {
       client.release();
