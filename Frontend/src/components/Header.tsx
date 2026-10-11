@@ -20,6 +20,7 @@ export default function Header() {
     { label: 'Loans & EMI', path: '/emi' },
     { label: 'Transactions', path: '/transactions' },
     { label: 'Credit Health', path: '/credit-health' },
+    { label: 'Overview', path: '/landing' },
   ];
 
   return (

@@ -130,15 +130,22 @@ export default function Home() {
           </div>
 
           <div className="relative z-10 max-w-4xl cm-float">
-
-            <div className="data-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400/70 mb-6">
-              CREDIMERGE / FINANCIAL INTELLIGENCE
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <span className="data-mono text-[10px] uppercase tracking-[0.3em] text-emerald-400/90 font-bold px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20">
+                CREDIMERGE / FINANCIAL INTELLIGENCE
+              </span>
+              <span className="data-mono text-[10px] uppercase tracking-wider text-cyan-300/80 px-2.5 py-1 rounded bg-cyan-500/10 border border-cyan-500/20">
+                ● {user.fullName || user.user_id} ({user.worker_type})
+              </span>
+              <span className="data-mono text-[10px] uppercase tracking-wider text-slate-400 px-2 py-1 rounded bg-white/5 border border-white/10">
+                RISK: {user.risk_band}
+              </span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-[-0.06em] leading-[0.9] text-white...cm-interactive">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-[-0.06em] leading-[0.9] text-white cm-interactive">
               Your money.
               <br />
-              <span className="text-emerald-400...cm-interactive">
+              <span className="text-emerald-400 cm-interactive">
                 Made visible.
               </span>
             </h1>
@@ -151,7 +158,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-3 mt-8">
               <button
                 onClick={() => navigate('/emi')}
-                className="px-6 py-3 bg-emerald-400 text-black text-xs font-bold uppercase tracking-[0.15em] hover:bg-emerald-300 transition-all duration-300"
+                className="px-6 py-3 bg-emerald-400 text-black text-xs font-bold uppercase tracking-[0.15em] hover:bg-emerald-300 transition-all duration-300 shadow-lg shadow-emerald-500/20"
               >
                 Manage EMI →
               </button>
@@ -160,7 +167,7 @@ export default function Home() {
                 onClick={() => navigate('/transactions')}
                 className="px-6 py-3 border border-emerald-400/40 text-emerald-300 text-xs font-bold uppercase tracking-[0.15em] hover:bg-emerald-400/10 transition-all duration-300"
               >
-                Transactions & Cash Flow
+                Transactions &amp; Cash Flow
               </button>
 
               <button
@@ -169,22 +176,32 @@ export default function Home() {
               >
                 Credit Health
               </button>
+
+              <button
+                onClick={() => navigate('/landing')}
+                className="px-5 py-3 border border-white/[0.08] text-slate-400 text-xs font-medium uppercase tracking-[0.15em] hover:text-white hover:border-white/20 transition-all duration-300"
+              >
+                Platform Overview ↗
+              </button>
             </div>
           </div>
 
           {/* DATA MARKERS */}
           <div className="hidden lg:block absolute right-0 bottom-8 text-right cm-float">
-            <div className="data-mono text-[9px] uppercase tracking-[0.2em] text-slate-600">
+            <div className="data-mono text-[9px] uppercase tracking-[0.2em] text-slate-500">
               LIVE FINANCIAL MODEL
             </div>
 
-            <div className="data-mono text-3xl font-bold text-slate-300 mt-2 transition-all duration-500 hover:text-white hover:scale-105">
-               {user.cashflow_score}
-            <span className="text-emerald-400 text-sm ml-2 cm-pulse">
+            <div className="data-mono text-4xl font-black text-white mt-2 transition-all duration-500 hover:scale-105">
+              {user.cashflow_score}
+              <span className="text-emerald-400 text-base ml-2 cm-pulse font-normal">
                 / 100
-            </span>
+              </span>
             </div>
-            <div className="mt-3 h-px w-40 bg-gradient-to-r from-transparent via-emerald-400/50 to-emerald-400" />
+            <div className="text-[11px] font-mono text-slate-400 mt-1">
+              FOIR: <span className="text-emerald-300 font-bold">{user.foir_pct}%</span> · Surplus: <span className="text-cyan-300 font-bold">₹{user.monthly_cashflow.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="mt-3 h-px w-48 bg-gradient-to-r from-transparent via-emerald-400/50 to-emerald-400" />
           </div>
         </section>
 

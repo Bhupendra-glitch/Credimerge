@@ -935,3 +935,70 @@ button:active {
     transition: none !important;
   }
 }
+
+/* --------------------------------
+   LANDING PAGE ENHANCEMENTS
+-------------------------------- */
+
+.cm-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  outline: none;
+  transition: background 0.2s ease;
+}
+
+.cm-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.6), 0 0 0 3px rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cm-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 22px rgba(16, 185, 129, 0.9), 0 0 0 4px rgba(255, 255, 255, 0.3);
+}
+
+.cm-range-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.6), 0 0 0 3px rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cm-glass-card {
+  background: rgba(10, 15, 15, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.cm-glow-emerald {
+  box-shadow: 0 0 50px -10px rgba(16, 185, 129, 0.2);
+}
+
+.cm-glow-cyan {
+  box-shadow: 0 0 50px -10px rgba(6, 182, 212, 0.2);
+}
+
+html[data-theme="light"] .cm-glass-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(226, 232, 240, 0.9);
+  box-shadow: 0 12px 36px -10px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .cm-range-slider {
+  background: rgba(15, 23, 42, 0.08);
+}

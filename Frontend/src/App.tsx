@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Home from './pages/Home';
 import EmiPage from './pages/EmiPage';
@@ -14,6 +15,8 @@ export default function App() {
       <AppBackground />
       <div className="app-content">
         <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<PasswordReset mode="request" />} />
           <Route path="/reset-password" element={<PasswordReset mode="reset" />} />
@@ -49,8 +52,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </>
